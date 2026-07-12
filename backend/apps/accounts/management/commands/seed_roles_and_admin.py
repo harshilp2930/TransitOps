@@ -16,17 +16,24 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(self.style.SUCCESS(f"Created role: {r}"))
 
-        # Create a demo fleet manager if not exists
-        if not User.objects.filter(email="admin@transitops.local").exists():
-            fm = User.objects.create_user(
-                email="admin@transitops.local",
-                password="password123",
-                full_name="Demo Fleet Manager",
-            )
-            role = Role.objects.get(name=Role.FLEET_MANAGER)
-            fm.role = role
-            fm.is_staff = True
-            fm.save(update_fields=["role_id", "is_staff"])
-            self.stdout.write(self.style.SUCCESS("Created demo Fleet Manager user: admin@transitops.local / password123"))
-        else:
-            self.stdout.write(self.style.NOTICE("Demo user already exists"))
+        # Create demo users for quick sign-in
+        demo_users = [
+            ("admin@transitops.local", "Demo Fleet Manager", Role.FLEET_MANAGER, "transitops123"),
+            ("fleet@transitops.com", "Fleet Manager", Role.FLEET_MANAGER, "transitops123"),
+            ("dispatcher@transitops.com", "Dispatcher User", Role.DISPATCHER, "transitops123"),
+            ("safety@transitops.com", "Safety Officer", Role.SAFETY_OFFICER, "transitops123"),
+            ("finance@transitops.com", "Financial Analyst", Role.FINANCIAL_ANALYST, "transitops123"),
+        ]
+
+        for email, full_name, role_name, pwd in demo_users:
+            if not User.objects.filter(email=email).exists():
+                u = User.objects.create_user(email=email, password=pwd, full_name=full_name)
+                role = Role.objects.get(name=role_name)
+                u.role = role
+                # Make admin@transitops.local staff
+                if email == "admin@transitops.local":
+                    u.is_staff = True
+                u.save(update_fields=["role_id", "is_staff"])
+                self.stdout.write(self.style.SUCCESS(f"Created demo user: {email} / {pwd}"))
+            else:
+                self.stdout.write(self.style.NOTICE(f"Demo user already exists: {email}"))
