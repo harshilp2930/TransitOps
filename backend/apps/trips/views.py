@@ -70,6 +70,22 @@ class TripViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        """Override create to log serializer validation errors for debugging."""
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=False)
+        except Exception:
+            pass
+        if not serializer.is_valid():
+            # log errors server-side for debugging
+            import logging
+            logging.getLogger('django.request').error("Trip create validation errors: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     @action(detail=True, methods=["post"], url_path="dispatch")
     def dispatch_trip(self, request, pk=None):
         """POST /api/v1/trips/{id}/dispatch/ — BR2,3,4,5,6 enforced in service."""
