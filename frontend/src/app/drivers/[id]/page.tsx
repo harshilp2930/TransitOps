@@ -42,14 +42,14 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         {hasRole(['Fleet Manager','Safety Officer']) && (
           <div className="mt-4">
             {driver.status !== 'Suspended' ? (
-              <button className="px-3 py-2 bg-red-600 text-white rounded" onClick={async () => {
+              <button aria-label="Suspend driver" className="px-3 py-2 bg-red-600 text-white rounded" onClick={async () => {
                 try {
                   await api.patch(`/drivers/${id}/`, { status: 'Suspended' });
                   setDriver({ ...driver, status: 'Suspended' });
                 } catch (e) { console.error(e); }
               }}>Suspend</button>
             ) : (
-              <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={async () => {
+              <button aria-label="Reinstate driver" className="px-3 py-2 bg-green-600 text-white rounded" onClick={async () => {
                 try {
                   await api.patch(`/drivers/${id}/`, { status: 'Available' });
                   setDriver({ ...driver, status: 'Available' });
