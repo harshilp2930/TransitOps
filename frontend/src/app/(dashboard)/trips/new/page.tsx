@@ -159,7 +159,7 @@ export default function AddTripPage() {
           }));
           // load LR details (if endpoint exists)
           try {
-            const lr = await api.get(`/lr-details/?trip_id=${tripIdParam}`);
+            const lr = await api.get(`/trips/lr-details/?trip_id=${tripIdParam}`);
             if (lr.data && Array.isArray(lr.data) && lr.data.length) {
               setLrDetails(lr.data.map((r: any) => ({
                 lr_number: r.lr_number || '',
@@ -387,7 +387,7 @@ export default function AddTripPage() {
         await api.patch(`/trips/${tripIdParam}/`, payload);
         // smarter LR sync: update existing rows, delete removed ones, create new ones
         try {
-          const existingRes = await api.get(`/lr-details/?trip_id=${tripIdParam}`);
+          const existingRes = await api.get(`/trips/lr-details/?trip_id=${tripIdParam}`);
           const existing = existingRes.data || [];
           const existingById: Record<string, any> = {};
           for (const r of existing) existingById[String(r.id)] = r;
@@ -396,7 +396,7 @@ export default function AddTripPage() {
           for (const r of existing) {
             const found = lrDetails.find(l => l.id && String(l.id) === String(r.id));
             if (!found) {
-              await api.delete(`/lr-details/${r.id}/`);
+              await api.delete(`/trips/lr-details/${r.id}/`);
             }
           }
 
@@ -419,9 +419,9 @@ export default function AddTripPage() {
               trip: tripIdParam,
             };
             if (lr.id) {
-              await api.patch(`/lr-details/${lr.id}/`, body);
+              await api.patch(`/trips/lr-details/${lr.id}/`, body);
             } else {
-              await api.post('/lr-details/', body);
+              await api.post('/trips/lr-details/', body);
             }
           }
         } catch (e) {
@@ -543,7 +543,7 @@ export default function AddTripPage() {
               shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
               trip: tripId,
             };
-            await api.post('/lr-details/', lrPayload);
+            await api.post('/trips/lr-details/', lrPayload);
           }
         }
 
