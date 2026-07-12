@@ -11,7 +11,7 @@ export default function AddTripPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('lr_detail');
   const [loading, setLoading] = useState(false);
-  const [vehicles, setVehicles] = useState<{id: number; registration_number: string}[]>([]);
+  const [vehicles, setVehicles] = useState<{id: number; registration_number: string; max_load_capacity_kg?: number}[]>([]);
   const [drivers, setDrivers] = useState<{id: number; name: string}[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const searchParams = useSearchParams();
@@ -159,7 +159,7 @@ export default function AddTripPage() {
           }));
           // load LR details (if endpoint exists)
           try {
-            const lr = await api.get(`/trips/${tripIdParam}/lr-details/`);
+            const lr = await api.get(`/lr-details/?trip_id=${tripIdParam}`);
             if (lr.data && Array.isArray(lr.data) && lr.data.length) {
               setLrDetails(lr.data.map((r: any) => ({
                 lr_number: r.lr_number || '',
@@ -351,7 +351,18 @@ export default function AddTripPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Create or update Trip — sanitize types
+      // 1. Validation check for weight
+      const selectedVehicle = vehicles.find(v => String(v.id) === String(formData.vehicle));
+      if (selectedVehicle && selectedVehicle.max_load_capacity_kg) {
+        const totalWeight = lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.loading_weight) || 0), 0);
+        if (totalWeight > selectedVehicle.max_load_capacity_kg) {
+          toast.error(`Total weight (${totalWeight} kg) exceeds vehicle capacity (${selectedVehicle.max_load_capacity_kg} kg)`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Create or update Trip — sanitize types
       const payload = {
         source: formData.source || '',
         destination: formData.destination || '',
@@ -372,7 +383,7 @@ export default function AddTripPage() {
         await api.patch(`/trips/${tripIdParam}/`, payload);
         // smarter LR sync: update existing rows, delete removed ones, create new ones
         try {
-          const existingRes = await api.get(`/trips/${tripIdParam}/lr-details/`);
+          const existingRes = await api.get(`/lr-details/?trip_id=${tripIdParam}`);
           const existing = existingRes.data || [];
           const existingById: Record<string, any> = {};
           for (const r of existing) existingById[String(r.id)] = r;
@@ -381,7 +392,7 @@ export default function AddTripPage() {
           for (const r of existing) {
             const found = lrDetails.find(l => l.id && String(l.id) === String(r.id));
             if (!found) {
-              await api.delete(`/trips/lr-details/${r.id}/`);
+              await api.delete(`/lr-details/${r.id}/`);
             }
           }
 
@@ -404,9 +415,9 @@ export default function AddTripPage() {
               trip: tripIdParam,
             };
             if (lr.id) {
-              await api.patch(`/trips/lr-details/${lr.id}/`, body);
+              await api.patch(`/lr-details/${lr.id}/`, body);
             } else {
-              await api.post('/trips/lr-details/', body);
+              await api.post('/lr-details/', body);
             }
           }
         } catch (e) {
