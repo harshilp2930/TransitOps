@@ -46,10 +46,10 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
-            "max_load_capacity_kg", "odometer_km", "acquisition_cost",
-            "status", "region", "created_at", "updated_at",
+            "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
+            "status", "region", "owner_name", "account_reference", "last_depot_return", "created_at", "updated_at",
             "documents", "total_operational_cost", "category_expense_totals",
-            "is_available_for_dispatch"
+            "is_available_for_dispatch", "needs_tyre_change", "is_depot_overdue"
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
@@ -108,6 +108,6 @@ class VehicleListSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
-            "max_load_capacity_kg", "odometer_km", "acquisition_cost",
-            "status", "region", "created_at"
+            "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
+            "status", "region", "owner_name", "account_reference", "last_depot_return", "created_at", "needs_tyre_change", "is_depot_overdue"
         ]

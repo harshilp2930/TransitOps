@@ -1,9 +1,15 @@
 """Trip serializers."""
 from rest_framework import serializers
-from apps.trips.models import Trip
+from apps.trips.models import Trip, TripLRDetail
 from apps.vehicles.serializers import VehicleListSerializer
 from apps.drivers.serializers import DriverListSerializer
 
+
+class TripLRDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TripLRDetail
+        fields = "__all__"
+        read_only_fields = ["id", "trip", "created_at"]
 
 class TripSerializer(serializers.ModelSerializer):
     vehicle_detail = VehicleListSerializer(source="vehicle", read_only=True)
@@ -11,19 +17,21 @@ class TripSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(
         source="created_by.full_name", read_only=True, default=""
     )
+    lr_details = TripLRDetailSerializer(many=True, read_only=True)
 
     class Meta:
         model = Trip
         fields = [
-            "id", "trip_code", "source", "destination",
+            "id", "trip_code", "trip_date", "source", "destination",
             "vehicle", "vehicle_detail",
             "driver", "driver_detail",
             "cargo_weight_kg", "planned_distance_km", "revenue", "planned_eta",
+            "arrival_date", "arrival_km", "narration",
             "load_type", "freight_type",
             "status", "created_at", "updated_at",
             "dispatched_at", "completed_at", "cancelled_at",
             "final_odometer_km", "fuel_consumed_l",
-            "home_depot_id", "created_by", "created_by_name"
+            "home_depot_id", "created_by", "created_by_name", "lr_details"
         ]
         read_only_fields = [
             "id", "trip_code", "created_at", "updated_at",

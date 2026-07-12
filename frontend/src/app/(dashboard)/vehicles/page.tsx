@@ -29,31 +29,17 @@ interface Vehicle {
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [createError, setCreateError] = useState('');
-  const [form, setForm] = useState({
-    registration_number: '',
-    name_model: '',
-    type: 'Van',
-    max_load_capacity_kg: '0',
-    odometer_km: '0',
-    acquisition_cost: '0',
-    status: 'Available',
-    region: '',
-  });
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager']);
 
+
   const fetchVehicles = async () => {
     try {
       const res = await api.get('/vehicles/');
-      if (res.data.results) {
-        setVehicles(res.data.results);
-      } else {
-        setVehicles(res.data);
-      }
+      setVehicles(res.data.results || res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,32 +48,10 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchVehicles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchVehicles();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateError('');
-    try {
-      await api.post('/vehicles/', form);
-      setForm({
-        registration_number: '',
-        name_model: '',
-        type: 'Van',
-        max_load_capacity_kg: '0',
-        odometer_km: '0',
-        acquisition_cost: '0',
-        status: 'Available',
-        region: '',
-      });
-      setShowCreate(false);
-      await fetchVehicles();
-    } catch (err: unknown) {
-      const apiErr = err as ApiError;
-      setCreateError(apiErr.response?.data?.registration_number?.[0] || apiErr.response?.data?.detail || 'Failed to create vehicle.');
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -114,8 +78,8 @@ export default function VehiclesPage() {
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage your fleet inventory and statuses</p>
         </div>
         {canEdit && (
-          <button
-            onClick={() => setShowCreate((prev) => !prev)}
+          <button 
+            onClick={() => window.location.href = '/vehicles/new'}
             className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -124,31 +88,7 @@ export default function VehiclesPage() {
         )}
       </div>
 
-      {showCreate && (
-        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Register Vehicle</h3>
-          {createError && <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" placeholder="Registration Number" value={form.registration_number} onChange={(e) => setForm((prev) => ({ ...prev, registration_number: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="text" placeholder="Name / Model" value={form.name_model} onChange={(e) => setForm((prev) => ({ ...prev, name_model: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <select value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-              <option value="Van">Van</option>
-              <option value="Truck">Truck</option>
-              <option value="Mini">Mini</option>
-              <option value="Bus">Bus</option>
-              <option value="Other">Other</option>
-            </select>
-            <input type="number" min="0" step="0.01" placeholder="Max Load Capacity (kg)" value={form.max_load_capacity_kg} onChange={(e) => setForm((prev) => ({ ...prev, max_load_capacity_kg: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="number" min="0" step="0.01" placeholder="Odometer (km)" value={form.odometer_km} onChange={(e) => setForm((prev) => ({ ...prev, odometer_km: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="number" min="0" step="0.01" placeholder="Acquisition Cost" value={form.acquisition_cost} onChange={(e) => setForm((prev) => ({ ...prev, acquisition_cost: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="text" placeholder="Region" value={form.region} onChange={(e) => setForm((prev) => ({ ...prev, region: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-          </div>
-          <div className="flex gap-3">
-            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg">Create</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg">Cancel</button>
-          </div>
-        </form>
-      )}
+
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm dark:shadow-xl">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 bg-slate-50 dark:bg-slate-800/30">
