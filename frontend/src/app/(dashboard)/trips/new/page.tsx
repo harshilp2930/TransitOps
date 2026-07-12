@@ -66,6 +66,18 @@ export default function AddTripPage() {
     }
   };
 
+  const calculateTotalFreight = () => {
+    return lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.total_freight) || 0), 0);
+  };
+
+  const computeRunAndAverage = () => {
+    const dep = parseFloat(formData.departure_km as string) || 0;
+    const arr = parseFloat(formData.arrival_km as string) || 0;
+    const run = (arr && dep) ? (arr - dep) : 0;
+    const avg = 0;
+    return { run, avg };
+  };
+
   useEffect(() => {
     // eslint-disable-next-line
     fetchLookups();
@@ -139,72 +151,23 @@ export default function AddTripPage() {
   const [driverForm, setDriverForm] = useState({ name: '', license_number: '', license_category: '', license_expiry_date: '', contact_number: '', safety_score: '100', status: 'Available' });
   const [vehicleLoading, setVehicleLoading] = useState(false);
   const [driverLoading, setDriverLoading] = useState(false);
-
   const createVehicle = async () => {
-    useEffect(() => {
-      // eslint-disable-next-line
-      (async () => {
-        await fetchLookups();
-        // load saved locations from localStorage
-        try {
-          const stored = typeof window !== 'undefined' ? localStorage.getItem('trip_locations') : null;
-          if (stored) setLocations(JSON.parse(stored));
-        } catch (e) {
-          console.error('failed to load locations', e);
-        }
-
-        // if editing via tripId query param, load trip and LR details
-        if (tripIdParam) {
-          setIsEditing(true);
-          try {
-            const res = await api.get(`/trips/${tripIdParam}/`);
-            const data = res.data;
-            setFormData(prev => ({
-              ...prev,
-              trip_date: data.trip_date || prev.trip_date,
-              trip_code: data.trip_code || prev.trip_code,
-              vehicle: data.vehicle ? String(data.vehicle) : prev.vehicle,
-              driver: data.driver ? String(data.driver) : prev.driver,
-              source: data.source || prev.source,
-              destination: data.destination || prev.destination,
-              arrival_date: data.arrival_date || prev.arrival_date,
-              arrival_km: data.arrival_km ?? prev.arrival_km,
-              departure_km: data.departure_km ?? prev.departure_km,
-              planned_distance_km: data.planned_distance_km ?? prev.planned_distance_km,
-              cargo_weight_kg: data.cargo_weight_kg ?? prev.cargo_weight_kg,
-              revenue: data.revenue ?? prev.revenue,
-              narration: data.narration || prev.narration,
-            }));
-            // load LR details (if endpoint exists)
-            try {
-              const lr = await api.get(`/trips/${tripIdParam}/lr-details/`);
-              if (lr.data && Array.isArray(lr.data) && lr.data.length) {
-                setLrDetails(lr.data.map((r: any) => ({
-                  lr_number: r.lr_number || '',
-                  lr_date: r.lr_date || '',
-                  consignor: r.consignor || '',
-                  consignee: r.consignee || '',
-                  from_city: r.from_city || '',
-                  to_city: r.to_city || '',
-                  goods_description: r.goods_description || '',
-                  loading_weight: r.loading_weight ? String(r.loading_weight) : '0',
-                  unloading_weight: r.unloading_weight ? String(r.unloading_weight) : '0',
-                  party_rate: r.party_rate ? String(r.party_rate) : '0',
-                  total_freight: r.total_freight ? String(r.total_freight) : '0',
-                  shortage_amount: r.shortage_amount ? String(r.shortage_amount) : '0',
-                  id: r.id,
-                })));
-              }
-            } catch (e) {
-              // ignore missing lr endpoint
-            }
-          } catch (err) {
-            console.error('Failed to load trip for edit', err);
-          }
-        }
-      })();
-    }, []);
-    setLrDetails(newLrs);
+    setVehicleLoading(true);
+    try {
+      const res = await api.post('/vehicles/', vehicleForm);
+      const v = res.data;
+      const newV = { id: v.id, registration_number: v.registration_number || vehicleForm.registration_number };
+      setVehicles(prev => [newV, ...prev]);
+      setFormData(prev => ({ ...prev, vehicle: String(newV.id) }));
+      setShowVehicleModal(false);
+      setVehicleForm({ registration_number: '', odometer_km: '0' });
+      toast.success('Vehicle added');
+    } catch (err: unknown) {
+      const error = err as any;
+      toast.error(error.response?.data?.registration_number?.[0] || 'Failed to add vehicle');
+    } finally {
+      setVehicleLoading(false);
+    }
   };
 
   const addLrRow = () => {
