@@ -131,74 +131,79 @@ export default function AddTripPage() {
 
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showDriverModal, setShowDriverModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationFor, setLocationFor] = useState<'source' | 'destination'>('source');
+  const [locationForm, setLocationForm] = useState({ name: '' });
+  const [locationLoading, setLocationLoading] = useState(false);
   const [vehicleForm, setVehicleForm] = useState({ registration_number: '', name_model: '', type: 'Truck', max_load_capacity_kg: '', odometer_km: '0', acquisition_cost: '0', region: '', owner_name: '', account_reference: '', status: 'Available' });
   const [driverForm, setDriverForm] = useState({ name: '', license_number: '', license_category: '', license_expiry_date: '', contact_number: '', safety_score: '100', status: 'Available' });
   const [vehicleLoading, setVehicleLoading] = useState(false);
   const [driverLoading, setDriverLoading] = useState(false);
 
   const createVehicle = async () => {
-    setVehicleLoading(true);
-    try {
-      const res = await api.post('/vehicles/', vehicleForm);
-      const v = res.data;
-      const newV = { id: v.id, registration_number: v.registration_number || vehicleForm.registration_number };
-      setVehicles(prev => [newV, ...prev]);
-      setFormData(prev => ({ ...prev, vehicle: String(newV.id) }));
-      setShowVehicleModal(false);
-      setVehicleForm({ registration_number: '', odometer_km: '0' });
-      toast.success('Vehicle added');
-    } catch (err: unknown) {
-      const error = err as any;
-      toast.error(error.response?.data?.registration_number?.[0] || 'Failed to add vehicle');
-    } finally {
-      setVehicleLoading(false);
-    }
-  };
+    useEffect(() => {
+      // eslint-disable-next-line
+      (async () => {
+        await fetchLookups();
+        // load saved locations from localStorage
+        try {
+          const stored = typeof window !== 'undefined' ? localStorage.getItem('trip_locations') : null;
+          if (stored) setLocations(JSON.parse(stored));
+        } catch (e) {
+          console.error('failed to load locations', e);
+        }
 
-  const createDriver = async () => {
-    setDriverLoading(true);
-    try {
-      const res = await api.post('/drivers/', driverForm);
-      const d = res.data;
-      const newD = { id: d.id, name: d.name || driverForm.name };
-      setDrivers(prev => [newD, ...prev]);
-      setFormData(prev => ({ ...prev, driver: String(newD.id) }));
-      setShowDriverModal(false);
-      setDriverForm({ name: '', license_number: '', contact_number: '' });
-      toast.success('Driver added');
-    } catch (err: unknown) {
-      const error = err as any;
-      toast.error(error.response?.data?.detail || 'Failed to add driver');
-    } finally {
-      setDriverLoading(false);
-    }
-  };
-
-
-
-  const calculateTotalFreight = () => {
-    return lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.total_freight) || 0), 0);
-  };
-
-  const computeRunAndAverage = () => {
-    const dep = parseFloat(formData.departure_km as string) || 0;
-    const arr = parseFloat(formData.arrival_km as string) || 0;
-    const run = (arr && dep) ? (arr - dep) : 0;
-    const avg = 0; // average depends on fuel consumed at completion; left blank
-    return { run, avg };
-  };
-
-  const handleLrChange = (index: number, field: string, value: string) => {
-    const newLrs = [...lrDetails];
-    (newLrs[index] as Record<string, string>)[field] = value;
-    
-    // Auto calculate freight = weight * rate
-    if (field === 'loading_weight' || field === 'party_rate') {
-       const wt = parseFloat(newLrs[index].loading_weight) || 0;
-       const rate = parseFloat(newLrs[index].party_rate) || 0;
-       newLrs[index].total_freight = (wt * rate).toString();
-    }
-    
+        // if editing via tripId query param, load trip and LR details
+        if (tripIdParam) {
+          setIsEditing(true);
+          try {
+            const res = await api.get(`/trips/${tripIdParam}/`);
+            const data = res.data;
+            setFormData(prev => ({
+              ...prev,
+              trip_date: data.trip_date || prev.trip_date,
+              trip_code: data.trip_code || prev.trip_code,
+              vehicle: data.vehicle ? String(data.vehicle) : prev.vehicle,
+              driver: data.driver ? String(data.driver) : prev.driver,
+              source: data.source || prev.source,
+              destination: data.destination || prev.destination,
+              arrival_date: data.arrival_date || prev.arrival_date,
+              arrival_km: data.arrival_km ?? prev.arrival_km,
+              departure_km: data.departure_km ?? prev.departure_km,
+              planned_distance_km: data.planned_distance_km ?? prev.planned_distance_km,
+              cargo_weight_kg: data.cargo_weight_kg ?? prev.cargo_weight_kg,
+              revenue: data.revenue ?? prev.revenue,
+              narration: data.narration || prev.narration,
+            }));
+            // load LR details (if endpoint exists)
+            try {
+              const lr = await api.get(`/trips/${tripIdParam}/lr-details/`);
+              if (lr.data && Array.isArray(lr.data) && lr.data.length) {
+                setLrDetails(lr.data.map((r: any) => ({
+                  lr_number: r.lr_number || '',
+                  lr_date: r.lr_date || '',
+                  consignor: r.consignor || '',
+                  consignee: r.consignee || '',
+                  from_city: r.from_city || '',
+                  to_city: r.to_city || '',
+                  goods_description: r.goods_description || '',
+                  loading_weight: r.loading_weight ? String(r.loading_weight) : '0',
+                  unloading_weight: r.unloading_weight ? String(r.unloading_weight) : '0',
+                  party_rate: r.party_rate ? String(r.party_rate) : '0',
+                  total_freight: r.total_freight ? String(r.total_freight) : '0',
+                  shortage_amount: r.shortage_amount ? String(r.shortage_amount) : '0',
+                  id: r.id,
+                })));
+              }
+            } catch (e) {
+              // ignore missing lr endpoint
+            }
+          } catch (err) {
+            console.error('Failed to load trip for edit', err);
+          }
+        }
+      })();
+    }, []);
     setLrDetails(newLrs);
   };
 
@@ -241,18 +246,25 @@ export default function AddTripPage() {
 
       if (isEditing && tripIdParam) {
         await api.patch(`/trips/${tripIdParam}/`, payload);
-        // naive LR sync: delete existing and re-create from lrDetails
+        // smarter LR sync: update existing rows, delete removed ones, create new ones
         try {
-          const existing = await api.get(`/trips/${tripIdParam}/lr-details/`);
-          if (existing.data && Array.isArray(existing.data)) {
-            for (const r of existing.data) {
+          const existingRes = await api.get(`/trips/${tripIdParam}/lr-details/`);
+          const existing = existingRes.data || [];
+          const existingById: Record<string, any> = {};
+          for (const r of existing) existingById[String(r.id)] = r;
+
+          // Delete server rows not present in lrDetails (no matching id)
+          for (const r of existing) {
+            const found = lrDetails.find(l => l.id && String(l.id) === String(r.id));
+            if (!found) {
               await api.delete(`/trips/lr-details/${r.id}/`);
             }
           }
-        } catch (e) { /* ignore */ }
-        for (const lr of lrDetails) {
-          if (lr.lr_number) {
-            const lrPayload = {
+
+          // Upsert local rows
+          for (const lr of lrDetails) {
+            if (!lr.lr_number) continue;
+            const body = {
               lr_number: lr.lr_number,
               lr_date: lr.lr_date || null,
               consignor: lr.consignor || '',
@@ -267,8 +279,14 @@ export default function AddTripPage() {
               shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
               trip: tripIdParam,
             };
-            await api.post('/trips/lr-details/', lrPayload);
+            if (lr.id) {
+              await api.patch(`/trips/lr-details/${lr.id}/`, body);
+            } else {
+              await api.post('/trips/lr-details/', body);
+            }
           }
+        } catch (e) {
+          console.warn('LR sync issue', e);
         }
         toast.success('Trip updated');
         router.push('/trips');
@@ -398,6 +416,36 @@ export default function AddTripPage() {
         </div>
       )}
 
+      {showLocationModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowLocationModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-md shadow-lg">
+            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Location</h3>
+            <div className="space-y-3">
+              <label className="block text-sm text-slate-500">Name</label>
+              <input value={locationForm.name} onChange={e => setLocationForm({ name: e.target.value })} placeholder="Location name" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={() => setShowLocationModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
+              <button onClick={async () => {
+                setLocationLoading(true);
+                try {
+                  const name = locationForm.name?.trim();
+                  if (!name) { toast.error('Name required'); return; }
+                  const next = [...locations, name];
+                  setLocations(next);
+                  try { localStorage.setItem('trip_locations', JSON.stringify(next)); } catch {}
+                  if (locationFor === 'source') setFormData(prev => ({...prev, source: name}));
+                  else setFormData(prev => ({...prev, destination: name}));
+                  setShowLocationModal(false);
+                } catch (e) { console.error(e); toast.error('Failed to add location'); }
+                finally { setLocationLoading(false); }
+              }} disabled={locationLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{locationLoading ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left/Top Area: Core Trip Details */}
         <div className="lg:col-span-3 space-y-6">
@@ -475,20 +523,16 @@ export default function AddTripPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Source (From)</label>
-                  <select value={formData.source} onChange={e => {
-                      const v = e.target.value;
-                      if (v === '__add__') {
-                        const name = window.prompt('Add new source location');
-                        if (name) {
-                          const next = [...locations, name];
-                          setLocations(next);
-                          try { localStorage.setItem('trip_locations', JSON.stringify(next)); } catch {}
-                          setFormData(prev => ({...prev, source: name}));
+                    <select value={formData.source} onChange={e => {
+                        const v = e.target.value;
+                        if (v === '__add__') {
+                          setLocationFor('source');
+                          setLocationForm({ name: '' });
+                          setShowLocationModal(true);
+                          return;
                         }
-                      } else {
                         setFormData({...formData, source: v});
-                      }
-                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
+                      }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
                     <option value="">Select Source</option>
                     {locations.map((l, i) => <option key={i} value={l}>{l}</option>)}
                     <option value="__add__">+ Add new...</option>
@@ -496,20 +540,16 @@ export default function AddTripPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Destination (To)</label>
-                  <select value={formData.destination} onChange={e => {
-                      const v = e.target.value;
-                      if (v === '__add__') {
-                        const name = window.prompt('Add new destination location');
-                        if (name) {
-                          const next = [...locations, name];
-                          setLocations(next);
-                          try { localStorage.setItem('trip_locations', JSON.stringify(next)); } catch {}
-                          setFormData(prev => ({...prev, destination: name}));
+                    <select value={formData.destination} onChange={e => {
+                        const v = e.target.value;
+                        if (v === '__add__') {
+                          setLocationFor('destination');
+                          setLocationForm({ name: '' });
+                          setShowLocationModal(true);
+                          return;
                         }
-                      } else {
                         setFormData({...formData, destination: v});
-                      }
-                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
+                      }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
                     <option value="">Select Destination</option>
                     {locations.map((l, i) => <option key={i} value={l}>{l}</option>)}
                     <option value="__add__">+ Add new...</option>
