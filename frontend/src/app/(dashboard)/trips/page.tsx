@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock, AlertTriangle } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock, AlertTriangle, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ApiError = {
@@ -51,6 +51,7 @@ export default function LiveBoardPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const { hasRole } = useAuth();
   const canDispatch = hasRole(['Dispatcher']);
@@ -292,11 +293,22 @@ export default function LiveBoardPage() {
 
   return (
     <div className="h-full flex flex-col space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Live Operations Board</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kanban view of all trip lifecycles (auto-refreshes)</p>
         </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search trips..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-colors"
+            />
+          </div>
         {canDispatch && (
           <button 
             onClick={() => window.location.href = '/trips/new'}
@@ -309,61 +321,86 @@ export default function LiveBoardPage() {
       </div>
 
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
-        {/* Draft Column */}
-        <div className="min-w-[300px] flex-1 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col">
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-100 dark:bg-slate-800/30 rounded-t-xl">
-            <h3 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center">
-              <Clock className="w-4 h-4 mr-2 text-slate-500" /> Draft
-            </h3>
-            <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full">{board.draft.length}</span>
-          </div>
-          <div className="p-3 flex-1 overflow-y-auto space-y-3">
-            {board.draft.map(t => renderTripCard(t, 'draft'))}
-            {board.draft.length === 0 && <p className="text-center text-sm text-slate-500 mt-4">No draft trips</p>}
-          </div>
-        </div>
+        {(() => {
+          const filterTrips = (trips: Trip[]) => {
+            if (!search) return trips;
+            const q = search.toLowerCase();
+            return trips.filter(t => 
+              t.trip_code.toLowerCase().includes(q) || 
+              (t.vehicle_reg && t.vehicle_reg.toLowerCase().includes(q)) || 
+              (t.driver_name && t.driver_name.toLowerCase().includes(q)) || 
+              t.source.toLowerCase().includes(q) || 
+              t.destination.toLowerCase().includes(q)
+            );
+          };
 
-        {/* Dispatched Column */}
-        <div className="min-w-[300px] flex-1 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex flex-col">
-          <div className="p-3 border-b border-blue-100 dark:border-blue-900/30 flex justify-between items-center bg-blue-100/50 dark:bg-blue-900/20 rounded-t-xl">
-            <h3 className="font-semibold text-blue-700 dark:text-blue-400 flex items-center">
-              <Play className="w-4 h-4 mr-2 text-blue-500" /> Dispatched
-            </h3>
-            <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">{board.dispatched.length}</span>
-          </div>
-          <div className="p-3 flex-1 overflow-y-auto space-y-3">
-            {board.dispatched.map(t => renderTripCard(t, 'dispatched'))}
-            {board.dispatched.length === 0 && <p className="text-center text-sm text-blue-500/50 mt-4">No active trips</p>}
-          </div>
-        </div>
+          const draftTrips = filterTrips(board.draft);
+          const dispatchedTrips = filterTrips(board.dispatched);
+          const completedTrips = filterTrips(board.completed);
+          const cancelledTrips = filterTrips(board.cancelled);
 
-        {/* Completed Column */}
-        <div className="min-w-[300px] flex-1 bg-green-50/50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30 rounded-xl flex flex-col">
-          <div className="p-3 border-b border-green-100 dark:border-green-900/30 flex justify-between items-center bg-green-100/50 dark:bg-green-900/20 rounded-t-xl">
-            <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> Completed
-            </h3>
-            <span className="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 text-xs px-2 py-0.5 rounded-full">{board.completed.length}</span>
-          </div>
-          <div className="p-3 flex-1 overflow-y-auto space-y-3">
-            {board.completed.map(t => renderTripCard(t, 'completed'))}
-            {board.completed.length === 0 && <p className="text-center text-sm text-green-500/50 mt-4">No completed trips</p>}
-          </div>
-        </div>
+          return (
+            <>
+              {/* Draft Column */}
+              <div className="min-w-[300px] flex-1 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col">
+                <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-100 dark:bg-slate-800/30 rounded-t-xl">
+                  <h3 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center">
+                    <Clock className="w-4 h-4 mr-2 text-slate-500" /> Draft
+                  </h3>
+                  <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full">{draftTrips.length}</span>
+                </div>
+                <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                  {draftTrips.map(t => renderTripCard(t, 'draft'))}
+                  {draftTrips.length === 0 && <p className="text-center text-sm text-slate-500 mt-4">No draft trips</p>}
+                </div>
+              </div>
 
-        {/* Cancelled Column */}
-        <div className="min-w-[300px] flex-1 bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl flex flex-col">
-          <div className="p-3 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center bg-red-100/50 dark:bg-red-900/20 rounded-t-xl">
-            <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center">
-              <XCircle className="w-4 h-4 mr-2 text-red-500" /> Cancelled
-            </h3>
-            <span className="bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">{board.cancelled.length}</span>
-          </div>
-          <div className="p-3 flex-1 overflow-y-auto space-y-3">
-            {board.cancelled.map(t => renderTripCard(t, 'cancelled'))}
-            {board.cancelled.length === 0 && <p className="text-center text-sm text-red-500/50 mt-4">No cancelled trips</p>}
-          </div>
-        </div>
+              {/* Dispatched Column */}
+              <div className="min-w-[300px] flex-1 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex flex-col">
+                <div className="p-3 border-b border-blue-100 dark:border-blue-900/30 flex justify-between items-center bg-blue-100/50 dark:bg-blue-900/20 rounded-t-xl">
+                  <h3 className="font-semibold text-blue-700 dark:text-blue-400 flex items-center">
+                    <Play className="w-4 h-4 mr-2 text-blue-500" /> Dispatched
+                  </h3>
+                  <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">{dispatchedTrips.length}</span>
+                </div>
+                <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                  {dispatchedTrips.map(t => renderTripCard(t, 'dispatched'))}
+                  {dispatchedTrips.length === 0 && <p className="text-center text-sm text-blue-500/50 mt-4">No active trips</p>}
+                </div>
+              </div>
+
+              {/* Completed Column */}
+              <div className="min-w-[300px] flex-1 bg-green-50/50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30 rounded-xl flex flex-col">
+                <div className="p-3 border-b border-green-100 dark:border-green-900/30 flex justify-between items-center bg-green-100/50 dark:bg-green-900/20 rounded-t-xl">
+                  <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> Completed
+                  </h3>
+                  <span className="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 text-xs px-2 py-0.5 rounded-full">{completedTrips.length}</span>
+                </div>
+                <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                  {completedTrips.map(t => renderTripCard(t, 'completed'))}
+                  {completedTrips.length === 0 && <p className="text-center text-sm text-green-500/50 mt-4">No completed trips</p>}
+                </div>
+              </div>
+
+              {/* Cancelled Column */}
+              <div className="min-w-[300px] flex-1 bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl flex flex-col">
+                <div className="p-3 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center bg-red-100/50 dark:bg-red-900/20 rounded-t-xl">
+                  <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center">
+                    <XCircle className="w-4 h-4 mr-2 text-red-500" /> Cancelled
+                  </h3>
+                  <span className="bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">{cancelledTrips.length}</span>
+                </div>
+                <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                  {cancelledTrips.map(t => renderTripCard(t, 'cancelled'))}
+                  {cancelledTrips.length === 0 && <p className="text-center text-sm text-red-500/50 mt-4">No cancelled trips</p>}
+                </div>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
       </div>
       {/* Trip Details Modal */}
       {openTripId && tripDetail && (
