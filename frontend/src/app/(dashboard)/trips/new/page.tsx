@@ -543,7 +543,7 @@ export default function AddTripPage() {
               shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
               trip: tripId,
             };
-            await api.post('/trips/lr-details/', lrPayload);
+            await api.post('/lr-details/', lrPayload);
           }
         }
 
