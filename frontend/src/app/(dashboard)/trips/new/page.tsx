@@ -319,7 +319,7 @@ export default function AddTripPage() {
               <div className="flex items-center space-x-3">
                 <div>
                   <label className="block text-xs text-slate-500">Trip No.</label>
-                  <input value={formData.trip_code} readOnly type="text" className="px-2 py-1 border rounded w-28 bg-slate-50 dark:bg-slate-900" />
+                  <input value={formData.trip_code} onChange={e => setFormData({...formData, trip_code: e.target.value})} type="text" className="px-2 py-1 border rounded w-28 bg-slate-50 dark:bg-slate-900" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-500">Lr No.(O)</label>
