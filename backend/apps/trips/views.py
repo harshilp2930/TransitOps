@@ -144,3 +144,17 @@ class TripViewSet(viewsets.ModelViewSet):
             trips = qs.filter(status=s)
             result[s.lower()] = TripListSerializer(trips, many=True).data
         return Response(result)
+
+    @action(detail=True, methods=["patch"], url_path="set-code")
+    def set_code(self, request, pk=None):
+        """PATCH /api/v1/trips/{id}/set-code/ — update trip_code (inline edit from UI)"""
+        code = request.data.get("trip_code")
+        if not code:
+            return Response({"detail": "trip_code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        trip = self.get_object()
+        # enforce uniqueness
+        if Trip.objects.exclude(pk=trip.pk).filter(trip_code=code).exists():
+            return Response({"detail": "trip_code already in use."}, status=status.HTTP_400_BAD_REQUEST)
+        trip.trip_code = code
+        trip.save(update_fields=["trip_code"])
+        return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
