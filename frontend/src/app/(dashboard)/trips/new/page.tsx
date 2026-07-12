@@ -220,7 +220,7 @@ export default function AddTripPage() {
                   if (!formData.vehicle) return;
                   try {
                     const v = await api.get(`/vehicles/${formData.vehicle}/`);
-                    const od = v.data.odometer_km ?? v.data.odometer || 0;
+                    const od = (v.data.odometer_km ?? v.data.odometer) || 0;
                     setFormData(prev => ({...prev, departure_km: od?.toString() ?? ''}));
                   } catch (e) { console.error(e); }
                 }} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border rounded">Get</button>
