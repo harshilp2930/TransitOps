@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { IndianRupee, Fuel, Receipt, AlertTriangle, Plus, X } from 'lucide-react';
+import { Fuel, Receipt, Plus } from 'lucide-react';
 import { format } from 'date-fns';
+
+type ApiError = {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+};
 
 interface FuelLog {
   id: number;
-  vehicle_details?: { registration_number: string };
-  trip_details?: { trip_code: string };
+  vehicle_reg?: string;
+  trip_code?: string;
   date: string;
   litres: string;
   cost: string;
@@ -17,125 +25,179 @@ interface FuelLog {
 
 interface Expense {
   id: number;
-  vehicle_details?: { registration_number: string };
+  vehicle_reg?: string;
   category: string;
   amount: string;
   date: string;
   notes: string;
 }
 
-interface Vehicle { id: number; registration_number: string; name_model: string; status: string }
+interface VehicleOption {
+  id: number;
+  registration_number: string;
+  name_model: string;
+}
+
+interface TripOption {
+  id: number;
+  trip_code: string;
+  source: string;
+  destination: string;
+}
 
 export default function FinancePage() {
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [trips, setTrips] = useState<TripOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'fuel' | 'expenses'>('fuel');
-
-  // Modal states
-  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
-  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [error, setError] = useState('');
-
+  const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [fuelForm, setFuelForm] = useState({
-    vehicle_id: '',
-    date: new Date().toISOString().split('T')[0],
-    litres: '',
-    cost: '',
-    odometer_at_fill: ''
+    vehicle: '',
+    trip: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    litres: '0',
+    cost: '0',
+    odometer_at_fill: '0',
   });
-
   const [expenseForm, setExpenseForm] = useState({
-    vehicle_id: '',
-    category: 'Toll',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: ''
+    vehicle: '',
+    trip: '',
+    category: 'Misc',
+    amount: '0',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    notes: '',
   });
-
-  const fetchData = async () => {
-    try {
-      const [fuelRes, expRes, vehRes] = await Promise.all([
-        api.get('/fuel-logs/'),
-        api.get('/expenses/'),
-        api.get('/vehicles/')
-      ]);
-      setFuelLogs(fuelRes.data.results || fuelRes.data);
-      setExpenses(expRes.data.results || expRes.data);
-      setVehicles(vehRes.data.results || vehRes.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fuelRes, expRes, vehiclesRes, tripsRes] = await Promise.all([
+          api.get('/fuel-logs/'),
+          api.get('/expenses/'),
+          api.get('/vehicles/'),
+          api.get('/trips/'),
+        ]);
+        setFuelLogs(fuelRes.data.results || fuelRes.data);
+        setExpenses(expRes.data.results || expRes.data);
+        setVehicles(vehiclesRes.data.results || vehiclesRes.data);
+        setTrips(tripsRes.data.results || tripsRes.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchData();
   }, []);
 
-  const handleLogFuel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    setError('');
-    try {
-      await api.post('/fuel-logs/', {
-        vehicle: parseInt(fuelForm.vehicle_id),
-        date: fuelForm.date,
-        litres: parseFloat(fuelForm.litres),
-        cost: parseFloat(fuelForm.cost),
-        odometer_at_fill: parseInt(fuelForm.odometer_at_fill)
-      });
-      setIsFuelModalOpen(false);
-      setFuelForm({ vehicle_id: '', date: new Date().toISOString().split('T')[0], litres: '', cost: '', odometer_at_fill: '' });
-      await fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to log fuel');
-    } finally {
-      setSubmitLoading(false);
-    }
+  const refreshData = async () => {
+    const [fuelRes, expRes] = await Promise.all([
+      api.get('/fuel-logs/'),
+      api.get('/expenses/'),
+    ]);
+    setFuelLogs(fuelRes.data.results || fuelRes.data);
+    setExpenses(expRes.data.results || expRes.data);
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitLoading(true);
-    setError('');
+    setCreateError('');
     try {
-      await api.post('/expenses/', {
-        vehicle: expenseForm.vehicle_id ? parseInt(expenseForm.vehicle_id) : null,
-        category: expenseForm.category,
-        amount: parseFloat(expenseForm.amount),
-        date: expenseForm.date,
-        notes: expenseForm.notes
-      });
-      setIsExpenseModalOpen(false);
-      setExpenseForm({ vehicle_id: '', category: 'Toll', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
-      await fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to add expense');
-    } finally {
-      setSubmitLoading(false);
+      if (activeTab === 'fuel') {
+        await api.post('/fuel-logs/', {
+          vehicle: Number(fuelForm.vehicle),
+          trip: fuelForm.trip ? Number(fuelForm.trip) : null,
+          date: fuelForm.date,
+          litres: Number(fuelForm.litres),
+          cost: Number(fuelForm.cost),
+          odometer_at_fill: Number(fuelForm.odometer_at_fill),
+        });
+      } else {
+        await api.post('/expenses/', {
+          vehicle: Number(expenseForm.vehicle),
+          trip: expenseForm.trip ? Number(expenseForm.trip) : null,
+          category: expenseForm.category,
+          amount: Number(expenseForm.amount),
+          date: expenseForm.date,
+          notes: expenseForm.notes,
+        });
+      }
+      setShowCreate(false);
+      await refreshData();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setCreateError(apiErr.response?.data?.detail || 'Failed to create record.');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 relative">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Finance & Fuel Logs</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Track operational costs and fuel consumption</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => setIsFuelModalOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-amber-500/20">
-            <Plus className="w-5 h-5 mr-2" /> Log Fuel
-          </button>
-          <button onClick={() => setIsExpenseModalOpen(true)} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-purple-500/20">
-            <Plus className="w-5 h-5 mr-2" /> Add Expense
-          </button>
-        </div>
+        <button
+          onClick={() => setShowCreate((prev) => !prev)}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          {activeTab === 'fuel' ? 'Add Fuel Log' : 'Add Expense'}
+        </button>
       </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+            {activeTab === 'fuel' ? 'Create Fuel Log' : 'Create Expense'}
+          </h3>
+          {createError && <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>}
+
+          {activeTab === 'fuel' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select value={fuelForm.vehicle} onChange={(e) => setFuelForm((prev) => ({ ...prev, vehicle: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <option value="">Select vehicle</option>
+                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.registration_number} - {v.name_model}</option>)}
+              </select>
+              <select value={fuelForm.trip} onChange={(e) => setFuelForm((prev) => ({ ...prev, trip: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <option value="">Link trip (optional)</option>
+                {trips.map((t) => <option key={t.id} value={t.id}>{t.trip_code} ({t.source} to {t.destination})</option>)}
+              </select>
+              <input type="date" value={fuelForm.date} onChange={(e) => setFuelForm((prev) => ({ ...prev, date: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+              <input type="number" min="0.01" step="0.01" value={fuelForm.litres} onChange={(e) => setFuelForm((prev) => ({ ...prev, litres: e.target.value }))} placeholder="Litres" required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+              <input type="number" min="0" step="0.01" value={fuelForm.cost} onChange={(e) => setFuelForm((prev) => ({ ...prev, cost: e.target.value }))} placeholder="Cost" required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+              <input type="number" min="0" step="0.01" value={fuelForm.odometer_at_fill} onChange={(e) => setFuelForm((prev) => ({ ...prev, odometer_at_fill: e.target.value }))} placeholder="Odometer at fill" required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select value={expenseForm.vehicle} onChange={(e) => setExpenseForm((prev) => ({ ...prev, vehicle: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <option value="">Select vehicle</option>
+                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.registration_number} - {v.name_model}</option>)}
+              </select>
+              <select value={expenseForm.trip} onChange={(e) => setExpenseForm((prev) => ({ ...prev, trip: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <option value="">Link trip (optional)</option>
+                {trips.map((t) => <option key={t.id} value={t.id}>{t.trip_code} ({t.source} to {t.destination})</option>)}
+              </select>
+              <select value={expenseForm.category} onChange={(e) => setExpenseForm((prev) => ({ ...prev, category: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <option value="Toll">Toll</option>
+                <option value="Misc">Misc</option>
+                <option value="Other">Other</option>
+              </select>
+              <input type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(e) => setExpenseForm((prev) => ({ ...prev, amount: e.target.value }))} placeholder="Amount" required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+              <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm((prev) => ({ ...prev, date: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+              <input type="text" value={expenseForm.notes} onChange={(e) => setExpenseForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes" className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg">Cancel</button>
+          </div>
+        </form>
+      )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm dark:shadow-xl">
         <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
@@ -185,8 +247,8 @@ export default function FinancePage() {
                   {fuelLogs.length > 0 ? fuelLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4">{format(new Date(log.date), 'MMM dd, yyyy')}</td>
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.vehicle_details?.registration_number || 'N/A'}</td>
-                      <td className="px-6 py-4 font-mono text-xs text-blue-600 dark:text-blue-400">{log.trip_details?.trip_code || '-'}</td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.vehicle_reg || 'N/A'}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-blue-600 dark:text-blue-400">{log.trip_code || '-'}</td>
                       <td className="px-6 py-4 text-blue-600 dark:text-blue-300">{log.litres}</td>
                       <td className="px-6 py-4 font-medium text-amber-600 dark:text-amber-400">₹{parseFloat(log.cost).toLocaleString()}</td>
                       <td className="px-6 py-4">{log.odometer_at_fill.toLocaleString()} km</td>
@@ -215,7 +277,7 @@ export default function FinancePage() {
                   {expenses.length > 0 ? expenses.map((exp) => (
                     <tr key={exp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4">{format(new Date(exp.date), 'MMM dd, yyyy')}</td>
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{exp.vehicle_details?.registration_number || 'N/A'}</td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{exp.vehicle_reg || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
                           {exp.category}
@@ -235,100 +297,6 @@ export default function FinancePage() {
           )}
         </div>
       </div>
-
-      {/* Fuel Log Modal */}
-      {isFuelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-semibold text-lg text-slate-900 dark:text-white flex items-center"><Fuel className="w-5 h-5 mr-2 text-amber-500" /> Log Fuel</h3>
-              <button onClick={() => setIsFuelModalOpen(false)} className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleLogFuel} className="p-4 space-y-4">
-              {error && <div className="text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{error}</div>}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vehicle</label>
-                <select required value={fuelForm.vehicle_id} onChange={e => setFuelForm({...fuelForm, vehicle_id: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
-                  <option value="">Select a vehicle</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Litres</label>
-                  <input required value={fuelForm.litres} onChange={e => setFuelForm({...fuelForm, litres: e.target.value})} type="number" step="0.1" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cost (₹)</label>
-                  <input required value={fuelForm.cost} onChange={e => setFuelForm({...fuelForm, cost: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Odometer</label>
-                  <input required value={fuelForm.odometer_at_fill} onChange={e => setFuelForm({...fuelForm, odometer_at_fill: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                  <input required value={fuelForm.date} onChange={e => setFuelForm({...fuelForm, date: e.target.value})} type="date" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-              <div className="pt-4 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsFuelModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="px-4 py-2 text-sm font-medium bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition-colors disabled:opacity-50">{submitLoading ? 'Saving...' : 'Save Fuel Log'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Expense Modal */}
-      {isExpenseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-semibold text-lg text-slate-900 dark:text-white flex items-center"><Receipt className="w-5 h-5 mr-2 text-purple-500" /> Add Expense</h3>
-              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleAddExpense} className="p-4 space-y-4">
-              {error && <div className="text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{error}</div>}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vehicle (Optional)</label>
-                <select value={expenseForm.vehicle_id} onChange={e => setExpenseForm({...expenseForm, vehicle_id: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
-                  <option value="">None / General Expense</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                  <select required value={expenseForm.category} onChange={e => setExpenseForm({...expenseForm, category: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
-                    <option value="Toll">Toll</option>
-                    <option value="Fines">Fines</option>
-                    <option value="Misc">Misc</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (₹)</label>
-                  <input required value={expenseForm.amount} onChange={e => setExpenseForm({...expenseForm, amount: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                <input required value={expenseForm.date} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} type="date" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
-                <input value={expenseForm.notes} onChange={e => setExpenseForm({...expenseForm, notes: e.target.value})} type="text" placeholder="Description..." className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-              <div className="pt-4 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="px-4 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors disabled:opacity-50">{submitLoading ? 'Saving...' : 'Save Expense'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

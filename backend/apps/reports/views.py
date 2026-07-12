@@ -28,13 +28,29 @@ from apps.maintenance.models import MaintenanceRecord
 from apps.notifications.models import Notification
 
 
-def _get_vehicle_stats():
+def _apply_vehicle_filters(queryset, request):
+    """Apply dashboard filters: vehicle type, status, and region."""
+    vehicle_type = request.query_params.get("type")
+    vehicle_status = request.query_params.get("status")
+    region = request.query_params.get("region")
+
+    if vehicle_type:
+        queryset = queryset.filter(type__iexact=vehicle_type)
+    if vehicle_status:
+        queryset = queryset.filter(status__iexact=vehicle_status)
+    if region:
+        queryset = queryset.filter(region__icontains=region)
+
+    return queryset
+
+
+def _get_vehicle_stats(vehicle_qs):
     """Aggregated vehicle stats used in dashboard KPIs."""
-    total = Vehicle.objects.exclude(status=Vehicle.RETIRED).count()
-    active = Vehicle.objects.filter(status=Vehicle.ON_TRIP).count()
-    available = Vehicle.objects.filter(status=Vehicle.AVAILABLE).count()
-    in_shop = Vehicle.objects.filter(status=Vehicle.IN_SHOP).count()
-    retired = Vehicle.objects.filter(status=Vehicle.RETIRED).count()
+    total = vehicle_qs.exclude(status=Vehicle.RETIRED).count()
+    active = vehicle_qs.filter(status=Vehicle.ON_TRIP).count()
+    available = vehicle_qs.filter(status=Vehicle.AVAILABLE).count()
+    in_shop = vehicle_qs.filter(status=Vehicle.IN_SHOP).count()
+    retired = vehicle_qs.filter(status=Vehicle.RETIRED).count()
     utilization = round((active / total * 100), 1) if total > 0 else 0
     return {
         "total_vehicles": total + retired,
@@ -46,14 +62,23 @@ def _get_vehicle_stats():
     }
 
 
-def _get_trip_stats():
-    active_trips = Trip.objects.filter(status=Trip.DISPATCHED).count()
-    pending_trips = Trip.objects.filter(status=Trip.DRAFT).count()
-    drivers_on_duty = Driver.objects.filter(status=Driver.ON_TRIP).count()
+def _get_trip_stats(trip_qs):
+    active_trips = trip_qs.filter(status=Trip.DISPATCHED).count()
+    pending_trips = trip_qs.filter(status=Trip.DRAFT).count()
+    drivers_on_duty = Driver.objects.filter(
+        id__in=trip_qs.filter(status=Trip.DISPATCHED).values_list("driver_id", flat=True)
+    ).count()
+    completed_trips_today = trip_qs.filter(
+        status=Trip.COMPLETED,
+        completed_at__date=timezone.now().date(),
+    ).count()
+    total_drivers_available = Driver.objects.filter(status=Driver.AVAILABLE).count()
     return {
         "active_trips": active_trips,
         "pending_trips": pending_trips,
         "drivers_on_duty": drivers_on_duty,
+        "completed_trips_today": completed_trips_today,
+        "total_drivers_available": total_drivers_available,
     }
 
 
@@ -61,11 +86,19 @@ def _get_trip_stats():
 @permission_classes([IsAuthenticated])
 def dashboard_view(request):
     """GET /api/v1/reports/dashboard/ — KPI tiles + recent trips + vehicle status distribution."""
-    vehicle_stats = _get_vehicle_stats()
-    trip_stats = _get_trip_stats()
+    vehicle_qs = _apply_vehicle_filters(Vehicle.objects.all(), request)
+    vehicle_ids = list(vehicle_qs.values_list("id", flat=True))
+    trip_qs = Trip.objects.all()
+    if vehicle_ids:
+        trip_qs = trip_qs.filter(vehicle_id__in=vehicle_ids)
+
+    vehicle_stats = _get_vehicle_stats(vehicle_qs)
+    trip_stats = _get_trip_stats(trip_qs)
 
     # Recent trips (last 10)
-    recent_trips = Trip.objects.select_related("vehicle", "driver").order_by("-created_at")[:10]
+    recent_trips = (
+        trip_qs.select_related("vehicle", "driver").order_by("-created_at")[:10]
+    )
     recent_trips_data = [
         {
             "id": t.id,
@@ -82,10 +115,10 @@ def dashboard_view(request):
 
     # Vehicle status distribution for chart
     status_dist = {
-        Vehicle.AVAILABLE: Vehicle.objects.filter(status=Vehicle.AVAILABLE).count(),
-        Vehicle.ON_TRIP: Vehicle.objects.filter(status=Vehicle.ON_TRIP).count(),
-        Vehicle.IN_SHOP: Vehicle.objects.filter(status=Vehicle.IN_SHOP).count(),
-        Vehicle.RETIRED: Vehicle.objects.filter(status=Vehicle.RETIRED).count(),
+        Vehicle.AVAILABLE: vehicle_qs.filter(status=Vehicle.AVAILABLE).count(),
+        Vehicle.ON_TRIP: vehicle_qs.filter(status=Vehicle.ON_TRIP).count(),
+        Vehicle.IN_SHOP: vehicle_qs.filter(status=Vehicle.IN_SHOP).count(),
+        Vehicle.RETIRED: vehicle_qs.filter(status=Vehicle.RETIRED).count(),
     }
 
     # Unread notifications count
@@ -208,6 +241,9 @@ def analytics_view(request):
         key=lambda x: x["total_operational_cost"],
         reverse=True
     )[:5]
+    for row in top_costliest:
+        # Backward-compatible alias used by existing frontend page.
+        row["total_cost"] = row["total_operational_cost"]
 
     # Fleet-wide KPIs
     non_retired = Vehicle.objects.exclude(status=Vehicle.RETIRED).count()

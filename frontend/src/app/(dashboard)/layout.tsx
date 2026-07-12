@@ -1,21 +1,16 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Truck, Users, Activity, Settings, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun } from 'lucide-react';
+import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading, hasRole } = useAuth();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = typeof window !== 'undefined';
 
   if (loading) {
     return (

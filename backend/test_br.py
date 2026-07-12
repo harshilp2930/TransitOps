@@ -105,10 +105,16 @@ print("BR8 Restore: vehicle=%s driver=%s" % (vstate['status'], dstate['status'])
 check(vstate['status'] == 'Available', "Vehicle restored", "Vehicle NOT restored!")
 check(dstate['status'] == 'Available', "Driver restored", "Driver NOT restored!")
 
-# BR7: Complete
-status, resp = req('POST', '/trips/' + str(t2id) + '/dispatch/', token=token)
-check(status == 200, "Re-dispatched for complete test", "Re-dispatch failed!")
-status, resp = req('POST', '/trips/' + str(t2id) + '/complete/', {
+# BR7: Complete (use a fresh trip)
+status, trip4 = req('POST', '/trips/', {
+    'source': 'Nashik', 'destination': 'Aurangabad',
+    'vehicle': vid, 'driver': did,
+    'cargo_weight_kg': 80, 'planned_distance_km': 200, 'revenue': 6500
+}, token)
+t4id = trip4['id']
+status, resp = req('POST', '/trips/' + str(t4id) + '/dispatch/', token=token)
+check(status == 200, "Dispatched fresh trip for complete test", "Dispatch failed for BR7 test!")
+status, resp = req('POST', '/trips/' + str(t4id) + '/complete/', {
     'final_odometer_km': 74200, 'fuel_consumed_l': 15.5, 'fuel_cost': 2015
 }, token)
 print("BR7 Complete:", status, "status=" + str(resp.get('status')))

@@ -33,6 +33,8 @@ interface DashboardStats {
   available_vehicles: number;
   vehicles_in_maintenance: number;
   active_trips: number;
+  pending_trips: number;
+  drivers_on_duty: number;
   completed_trips_today: number;
   total_drivers_available: number;
 }
@@ -45,7 +47,7 @@ interface AnalyticsStats {
     vehicle_roi_pct: number;
   };
   monthly_revenue: { month: string; revenue: number }[];
-  top_costliest_vehicles: { registration_number: string; total_cost: number }[];
+  top_costliest_vehicles: { registration_number: string; total_operational_cost: number }[];
 }
 
 export default function DashboardPage() {
@@ -112,7 +114,7 @@ export default function DashboardPage() {
     datasets: [
       {
         label: 'Operational Cost (₹)',
-        data: analytics?.top_costliest_vehicles?.map((d) => d.total_cost) || [25000, 18000, 15000],
+        data: analytics?.top_costliest_vehicles?.map((d) => d.total_operational_cost) || [25000, 18000, 15000],
         backgroundColor: '#ef4444',
       },
     ],
@@ -190,9 +192,9 @@ export default function DashboardPage() {
             <div className="p-2 bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Trips Completed Today</h3>
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Trips</h3>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.completed_trips_today}</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.pending_trips ?? 0}</p>
         </div>
       </div>
 
@@ -204,28 +206,28 @@ export default function DashboardPage() {
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Operational Cost</h3>
           <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
             <IndianRupee className="w-5 h-5 mr-1 text-slate-400 dark:text-slate-500" />
-            {analytics?.summary.total_operational_cost.toLocaleString() || '0'}
+            {(analytics?.summary.total_operational_cost ?? 0).toLocaleString()}
           </p>
         </div>
         
         <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-lg">
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Fleet Utilization</h3>
           <p className="text-2xl font-bold text-slate-900 dark:text-white">
-            {analytics?.summary.fleet_utilization_pct.toFixed(1) || '0'}%
+            {(analytics?.summary.fleet_utilization_pct ?? 0).toFixed(1)}%
           </p>
         </div>
 
         <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-lg">
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Fuel Efficiency</h3>
           <p className="text-2xl font-bold text-slate-900 dark:text-white">
-            {analytics?.summary.fuel_efficiency_kmpl.toFixed(2) || '0'} km/L
+            {(analytics?.summary.fuel_efficiency_kmpl ?? 0).toFixed(2)} km/L
           </p>
         </div>
 
         <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-lg">
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Vehicle ROI (Avg)</h3>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {analytics?.summary.vehicle_roi_pct.toFixed(2) || '0'}%
+            {(analytics?.summary.vehicle_roi_pct ?? 0).toFixed(2)}%
           </p>
         </div>
       </div>

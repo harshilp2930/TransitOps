@@ -2,9 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Plus, Search, Filter, X } from 'lucide-react';
+import { Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+
+type ApiError = {
+  response?: {
+    data?: {
+      registration_number?: string[];
+      detail?: string;
+    };
+  };
+};
 
 interface Vehicle {
   id: number;
@@ -21,28 +29,22 @@ interface Vehicle {
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [form, setForm] = useState({
+    registration_number: '',
+    name_model: '',
+    type: 'Van',
+    max_load_capacity_kg: '0',
+    odometer_km: '0',
+    acquisition_cost: '0',
+    status: 'Available',
+    region: '',
+  });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager']);
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    registration_number: '',
-    name_model: '',
-    type: 'Truck',
-    max_load_capacity_kg: '',
-    odometer_km: '0',
-    acquisition_cost: '0',
-    region: ''
-  });
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
 
   const fetchVehicles = async () => {
     try {
@@ -59,30 +61,31 @@ export default function VehiclesPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchVehicles();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitLoading(true);
-    setError('');
+    setCreateError('');
     try {
-      await api.post('/vehicles/', formData);
-      setIsModalOpen(false);
-      setFormData({
+      await api.post('/vehicles/', form);
+      setForm({
         registration_number: '',
         name_model: '',
-        type: 'Truck',
-        max_load_capacity_kg: '',
+        type: 'Van',
+        max_load_capacity_kg: '0',
         odometer_km: '0',
         acquisition_cost: '0',
-        region: ''
+        status: 'Available',
+        region: '',
       });
-      fetchVehicles();
-      toast.success('Vehicle created successfully!');
-    } catch (err: any) {
-      const msg = err.response?.data?.registration_number?.[0] || err.response?.data?.detail || 'Failed to create vehicle';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setSubmitLoading(false);
+      setShowCreate(false);
+      await fetchVehicles();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setCreateError(apiErr.response?.data?.registration_number?.[0] || apiErr.response?.data?.detail || 'Failed to create vehicle.');
     }
   };
 
@@ -104,15 +107,15 @@ export default function VehiclesPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 relative">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Vehicle Registry</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage your fleet inventory and statuses</p>
         </div>
         {canEdit && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
+          <button
+            onClick={() => setShowCreate((prev) => !prev)}
             className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -120,6 +123,32 @@ export default function VehiclesPage() {
           </button>
         )}
       </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Register Vehicle</h3>
+          {createError && <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" placeholder="Registration Number" value={form.registration_number} onChange={(e) => setForm((prev) => ({ ...prev, registration_number: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="Name / Model" value={form.name_model} onChange={(e) => setForm((prev) => ({ ...prev, name_model: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <select value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+              <option value="Van">Van</option>
+              <option value="Truck">Truck</option>
+              <option value="Mini">Mini</option>
+              <option value="Bus">Bus</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="number" min="0" step="0.01" placeholder="Max Load Capacity (kg)" value={form.max_load_capacity_kg} onChange={(e) => setForm((prev) => ({ ...prev, max_load_capacity_kg: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="number" min="0" step="0.01" placeholder="Odometer (km)" value={form.odometer_km} onChange={(e) => setForm((prev) => ({ ...prev, odometer_km: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="number" min="0" step="0.01" placeholder="Acquisition Cost" value={form.acquisition_cost} onChange={(e) => setForm((prev) => ({ ...prev, acquisition_cost: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="Region" value={form.region} onChange={(e) => setForm((prev) => ({ ...prev, region: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg">Cancel</button>
+          </div>
+        </form>
+      )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm dark:shadow-xl">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 bg-slate-50 dark:bg-slate-800/30">
@@ -168,14 +197,8 @@ export default function VehiclesPage() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
                 {filteredVehicles.length > 0 ? (
                   filteredVehicles.map((vehicle) => (
-                    <tr 
-                      key={vehicle.id} 
-                      onClick={() => window.location.href = `/vehicles/${vehicle.id}`}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
-                    >
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center">
-                        {vehicle.registration_number}
-                      </td>
+                    <tr key={vehicle.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{vehicle.registration_number}</td>
                       <td className="px-6 py-4">
                         {vehicle.name_model}
                         <span className="block text-xs text-slate-500">{vehicle.type}</span>
@@ -201,72 +224,6 @@ export default function VehiclesPage() {
           )}
         </div>
       </div>
-
-      {/* Add Vehicle Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Add New Vehicle</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              {error && <div className="text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{error}</div>}
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Registration Number</label>
-                <input required value={formData.registration_number} onChange={e => setFormData({...formData, registration_number: e.target.value.toUpperCase()})} type="text" placeholder="e.g. MH12AB1234" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Model Name</label>
-                <input required value={formData.name_model} onChange={e => setFormData({...formData, name_model: e.target.value})} type="text" placeholder="e.g. Tata Prima" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
-                  <select required value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
-                    <option value="Van">Van</option>
-                    <option value="Mini-truck">Mini-truck</option>
-                    <option value="Truck">Truck</option>
-                    <option value="Heavy-truck">Heavy-truck</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacity (kg)</label>
-                  <input required value={formData.max_load_capacity_kg} onChange={e => setFormData({...formData, max_load_capacity_kg: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Odometer (km)</label>
-                  <input required value={formData.odometer_km} onChange={e => setFormData({...formData, odometer_km: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cost (₹)</label>
-                  <input required value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Region</label>
-                <input required value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} type="text" placeholder="e.g. West Zone" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-
-              <div className="pt-4 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50">
-                  {submitLoading ? 'Saving...' : 'Save Vehicle'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

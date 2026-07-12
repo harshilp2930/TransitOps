@@ -2,9 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Plus, Search, Filter, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Plus, Search, Filter, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, isPast, isBefore, addDays } from 'date-fns';
+
+type ApiError = {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+};
 
 interface Driver {
   id: number;
@@ -20,27 +28,21 @@ interface Driver {
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [form, setForm] = useState({
+    name: '',
+    license_number: '',
+    license_category: '',
+    license_expiry_date: '',
+    contact_number: '',
+    safety_score: '100',
+    status: 'Available',
+  });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager', 'Safety Officer']);
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    license_number: '',
-    license_category: 'LMV',
-    license_expiry_date: '',
-    contact_number: '',
-    safety_score: '100'
-  });
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetchDrivers();
-  }, []);
 
   const fetchDrivers = async () => {
     try {
@@ -57,26 +59,30 @@ export default function DriversPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchDrivers();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitLoading(true);
-    setError('');
+    setCreateError('');
     try {
-      await api.post('/drivers/', formData);
-      setIsModalOpen(false);
-      setFormData({
+      await api.post('/drivers/', form);
+      setForm({
         name: '',
         license_number: '',
-        license_category: 'LMV',
+        license_category: '',
         license_expiry_date: '',
         contact_number: '',
-        safety_score: '100'
+        safety_score: '100',
+        status: 'Available',
       });
-      fetchDrivers();
-    } catch (err: any) {
-      setError(err.response?.data?.license_number?.[0] || err.response?.data?.detail || 'Failed to create driver');
-    } finally {
-      setSubmitLoading(false);
+      setShowCreate(false);
+      await fetchDrivers();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setCreateError(apiErr.response?.data?.detail || 'Failed to create driver.');
     }
   };
 
@@ -108,15 +114,15 @@ export default function DriversPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 relative">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Drivers & Safety</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage driver profiles and compliance</p>
         </div>
         {canEdit && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
+          <button
+            onClick={() => setShowCreate((prev) => !prev)}
             className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -124,6 +130,25 @@ export default function DriversPage() {
           </button>
         )}
       </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Register Driver</h3>
+          {createError && <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" placeholder="Driver Name" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="License Number" value={form.license_number} onChange={(e) => setForm((prev) => ({ ...prev, license_number: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="License Category" value={form.license_category} onChange={(e) => setForm((prev) => ({ ...prev, license_category: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="date" value={form.license_expiry_date} onChange={(e) => setForm((prev) => ({ ...prev, license_expiry_date: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="Contact Number" value={form.contact_number} onChange={(e) => setForm((prev) => ({ ...prev, contact_number: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="number" min="0" max="100" step="0.01" placeholder="Safety Score" value={form.safety_score} onChange={(e) => setForm((prev) => ({ ...prev, safety_score: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg">Cancel</button>
+          </div>
+        </form>
+      )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm dark:shadow-xl">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 bg-slate-50 dark:bg-slate-800/30">
@@ -175,12 +200,8 @@ export default function DriversPage() {
                     const isWarning = isLicenseExpiringSoon(driver.license_expiry_date);
 
                     return (
-                      <tr 
-                        key={driver.id} 
-                        onClick={() => window.location.href = `/drivers/${driver.id}`}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
-                      >
-                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center">{driver.name}</td>
+                      <tr key={driver.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{driver.name}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="text-slate-900 dark:text-slate-200">{driver.license_number} ({driver.license_category})</span>
@@ -216,65 +237,6 @@ export default function DriversPage() {
           )}
         </div>
       </div>
-
-      {/* Add Driver Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Add New Driver</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              {error && <div className="text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{error}</div>}
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-                <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} type="text" placeholder="e.g. Ramesh Kumar" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact Number</label>
-                <input required value={formData.contact_number} onChange={e => setFormData({...formData, contact_number: e.target.value})} type="text" placeholder="e.g. +91 9876543210" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">License No.</label>
-                  <input required value={formData.license_number} onChange={e => setFormData({...formData, license_number: e.target.value.toUpperCase()})} type="text" placeholder="e.g. DL-14-1234" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                  <select required value={formData.license_category} onChange={e => setFormData({...formData, license_category: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
-                    <option value="LMV">LMV</option>
-                    <option value="HMV">HMV</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Expiry Date</label>
-                  <input required value={formData.license_expiry_date} onChange={e => setFormData({...formData, license_expiry_date: e.target.value})} type="date" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Safety Score</label>
-                  <input required value={formData.safety_score} onChange={e => setFormData({...formData, safety_score: e.target.value})} type="number" min="0" max="100" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50">
-                  {submitLoading ? 'Saving...' : 'Save Driver'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

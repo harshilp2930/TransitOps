@@ -5,6 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Truck, ShieldAlert, Key } from 'lucide-react';
 
+type ApiError = {
+  response?: {
+    status?: number;
+  };
+};
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('transitops123');
@@ -27,9 +33,10 @@ export default function LoginPage() {
         role_name: role
       });
       
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
       console.error(err);
-      if (err.response?.status === 401) {
+      if (apiErr.response?.status === 401) {
         setError('Invalid credentials or account locked.');
       } else {
         setError('An error occurred during login. Please try again.');
