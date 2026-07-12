@@ -352,9 +352,13 @@ export default function AddTripPage() {
     setLoading(true);
     try {
       // 1. Validation check for weight
+      let totalWeight = 0;
+      if (lrDetails.length > 0) {
+        totalWeight = lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.loading_weight) || 0), 0);
+      }
+      
       const selectedVehicle = vehicles.find(v => String(v.id) === String(formData.vehicle));
       if (selectedVehicle && selectedVehicle.max_load_capacity_kg) {
-        const totalWeight = lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.loading_weight) || 0), 0);
         if (totalWeight > selectedVehicle.max_load_capacity_kg) {
           toast.error(`Total weight (${totalWeight} kg) exceeds vehicle capacity (${selectedVehicle.max_load_capacity_kg} kg)`);
           setLoading(false);
@@ -372,7 +376,7 @@ export default function AddTripPage() {
         arrival_date: formData.arrival_date || null,
         arrival_km: formData.arrival_km ? Number(formData.arrival_km) : null,
         planned_distance_km: formData.planned_distance_km ? Number(formData.planned_distance_km) : 0,
-        cargo_weight_kg: formData.cargo_weight_kg ? Number(formData.cargo_weight_kg) : 0,
+        cargo_weight_kg: totalWeight,
         revenue: Number(calculateTotalFreight()) || 0,
         narration: formData.narration || '',
         planned_eta: formData.planned_eta || null,
