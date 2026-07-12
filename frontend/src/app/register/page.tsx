@@ -45,8 +45,16 @@ export default function RegisterPage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 transition-colors duration-200">
-        <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700 text-center">
+      <div 
+        className="min-h-screen flex items-center justify-center p-4 relative"
+        style={{
+          backgroundImage: "url('/fleet-bg.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center"
+        }}
+      >
+        <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-900/70"></div>
+        <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700 text-center relative z-10">
           <div className="flex justify-center mb-6">
             <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
               <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400" />
@@ -68,8 +76,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 transition-colors duration-200">
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative"
+      style={{
+        backgroundImage: "url('/fleet-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center"
+      }}
+    >
+      <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-900/70"></div>
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700 relative z-10">
         <div className="flex flex-col items-center mb-6">
           <div className="bg-blue-600 p-3 rounded-full mb-4 shadow-lg shadow-blue-500/20">
             <Truck className="w-8 h-8 text-white" />
