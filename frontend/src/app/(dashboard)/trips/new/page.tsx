@@ -77,8 +77,8 @@ export default function AddTripPage() {
 
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showDriverModal, setShowDriverModal] = useState(false);
-  const [vehicleForm, setVehicleForm] = useState({ registration_number: '', odometer_km: '0' });
-  const [driverForm, setDriverForm] = useState({ name: '', license_number: '', contact_number: '' });
+  const [vehicleForm, setVehicleForm] = useState({ registration_number: '', name_model: '', type: 'Truck', max_load_capacity_kg: '', odometer_km: '0', acquisition_cost: '0', region: '', owner_name: '', account_reference: '', status: 'Available' });
+  const [driverForm, setDriverForm] = useState({ name: '', license_number: '', license_category: '', license_expiry_date: '', contact_number: '', safety_score: '100', status: 'Available' });
   const [vehicleLoading, setVehicleLoading] = useState(false);
   const [driverLoading, setDriverLoading] = useState(false);
 
@@ -251,15 +251,33 @@ export default function AddTripPage() {
       {showVehicleModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowVehicleModal(false)} />
-          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-md shadow-lg">
-            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Vehicle (Quick)</h3>
-            <div className="space-y-3">
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-2xl shadow-lg">
+            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Vehicle</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input placeholder="Registration (e.g. MH12AB1234)" value={vehicleForm.registration_number} onChange={e => setVehicleForm({...vehicleForm, registration_number: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Model Name" value={vehicleForm.name_model} onChange={e => setVehicleForm({...vehicleForm, name_model: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <select value={vehicleForm.type} onChange={e => setVehicleForm({...vehicleForm, type: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800">
+                <option>Truck</option>
+                <option>Heavy-truck</option>
+                <option>Van</option>
+                <option>Mini-truck</option>
+              </select>
+              <input placeholder="Capacity (kg)" value={vehicleForm.max_load_capacity_kg} onChange={e => setVehicleForm({...vehicleForm, max_load_capacity_kg: e.target.value})} type="number" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
               <input placeholder="Initial Odometer (km)" value={vehicleForm.odometer_km} onChange={e => setVehicleForm({...vehicleForm, odometer_km: e.target.value})} type="number" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Owner Name" value={vehicleForm.owner_name} onChange={e => setVehicleForm({...vehicleForm, owner_name: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Account Reference" value={vehicleForm.account_reference} onChange={e => setVehicleForm({...vehicleForm, account_reference: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Region" value={vehicleForm.region} onChange={e => setVehicleForm({...vehicleForm, region: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Acquisition Cost" value={vehicleForm.acquisition_cost} onChange={e => setVehicleForm({...vehicleForm, acquisition_cost: e.target.value})} type="number" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <select value={vehicleForm.status} onChange={e => setVehicleForm({...vehicleForm, status: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800">
+                <option>Available</option>
+                <option>On Trip</option>
+                <option>Maintenance</option>
+                <option>Inactive</option>
+              </select>
             </div>
             <div className="mt-4 flex justify-end space-x-2">
               <button onClick={() => setShowVehicleModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
-              <button onClick={createVehicle} disabled={vehicleLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{vehicleLoading ? 'Saving...' : 'Save'}</button>
+              <button onClick={createVehicle} disabled={vehicleLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{vehicleLoading ? 'Saving...' : 'Save Vehicle'}</button>
             </div>
           </div>
         </div>
@@ -268,17 +286,27 @@ export default function AddTripPage() {
       {showDriverModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowDriverModal(false)} />
-          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-md shadow-lg">
-            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Driver (Quick)</h3>
-            <div className="space-y-3">
-              <input placeholder="Driver Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
-              <input placeholder="License Number" value={driverForm.license_number} onChange={e => setDriverForm({...driverForm, license_number: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
-              <input placeholder="Contact Number" value={driverForm.contact_number} onChange={e => setDriverForm({...driverForm, contact_number: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
-            </div>
-            <div className="mt-4 flex justify-end space-x-2">
-              <button onClick={() => setShowDriverModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
-              <button onClick={createDriver} disabled={driverLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{driverLoading ? 'Saving...' : 'Save'}</button>
-            </div>
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-2xl shadow-lg">
+            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Driver</h3>
+            <form onSubmit={e => { e.preventDefault(); createDriver(); }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input placeholder="Driver Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} required className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <input placeholder="License Number" value={driverForm.license_number} onChange={e => setDriverForm({...driverForm, license_number: e.target.value})} required className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <input placeholder="License Category" value={driverForm.license_category} onChange={e => setDriverForm({...driverForm, license_category: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <input type="date" placeholder="License Expiry" value={driverForm.license_expiry_date} onChange={e => setDriverForm({...driverForm, license_expiry_date: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <input placeholder="Contact Number" value={driverForm.contact_number} onChange={e => setDriverForm({...driverForm, contact_number: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <input placeholder="Safety Score" value={driverForm.safety_score} onChange={e => setDriverForm({...driverForm, safety_score: e.target.value})} type="number" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+                <select value={driverForm.status} onChange={e => setDriverForm({...driverForm, status: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800">
+                  <option>Available</option>
+                  <option>On Trip</option>
+                  <option>Suspended</option>
+                </select>
+              </div>
+              <div className="mt-4 flex justify-end space-x-2">
+                <button type="button" onClick={() => setShowDriverModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
+                <button type="submit" disabled={driverLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{driverLoading ? 'Saving...' : 'Save Driver'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
