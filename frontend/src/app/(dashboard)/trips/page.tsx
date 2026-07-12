@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ApiError = {
@@ -32,15 +32,7 @@ interface BoardData {
   cancelled: Trip[];
 }
 
-<<<<<<< HEAD
-interface VehicleOption {
-  id: number;
-  registration_number: string;
-  name_model: string;
-}
-=======
 
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
 
 interface DriverOption {
   id: number;
@@ -53,10 +45,7 @@ export default function LiveBoardPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
-=======
-  
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
+
   const { hasRole } = useAuth();
   const canDispatch = hasRole(['Dispatcher']);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -76,13 +65,8 @@ export default function LiveBoardPage() {
 
   const fetchBoard = async () => {
     try {
-<<<<<<< HEAD
       const res = await api.get('/trips/board/');
       setBoard(res.data);
-=======
-      const boardRes = await api.get('/trips/board/');
-      setBoard(boardRes.data);
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     } catch (err) {
       console.error(err);
     } finally {
@@ -90,33 +74,9 @@ export default function LiveBoardPage() {
     }
   };
 
-<<<<<<< HEAD
-  const fetchPools = async () => {
-    try {
-      const [vehiclesRes, driversRes] = await Promise.all([
-        api.get('/vehicles/available/'),
-        api.get('/drivers/available/'),
-      ]);
-      setVehicles(vehiclesRes.data.results || vehiclesRes.data);
-      setDrivers(driversRes.data.results || driversRes.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchBoard();
-    void fetchPools();
+    fetchBoard();
     const interval = setInterval(fetchBoard, 15000); // refresh every 15s
-=======
-  useEffect(() => {
-    // eslint-disable-next-line
-    fetchData();
-    const interval = setInterval(() => {
-      api.get('/trips/board/').then(res => setBoard(res.data)).catch(console.error);
-    }, 15000);
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     return () => clearInterval(interval);
   }, []);
 
@@ -142,18 +102,10 @@ export default function LiveBoardPage() {
         };
       }
       await api.post(`/trips/${id}/${action}/`, payload);
-<<<<<<< HEAD
-      await Promise.all([fetchBoard(), fetchPools()]);
+      await fetchBoard();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       alert(apiErr.response?.data?.detail || `Failed to ${action} trip`);
-=======
-      await fetchData();
-    } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error = err as any;
-      alert(error.response?.data?.detail || error.response?.data?.error || `Failed to ${action} trip`);
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     } finally {
       setActionLoading(null);
     }
@@ -264,62 +216,6 @@ export default function LiveBoardPage() {
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kanban view of all trip lifecycles (auto-refreshes)</p>
         </div>
         {canDispatch && (
-<<<<<<< HEAD
-          <button
-            onClick={() => setShowCreate((prev) => !prev)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Trip
-          </button>
-        )}
-      </div>
-
-      {showCreate && (
-        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Create Draft Trip</h3>
-          {createError && <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" placeholder="Source" value={form.source} onChange={(e) => setForm((prev) => ({ ...prev, source: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="text" placeholder="Destination" value={form.destination} onChange={(e) => setForm((prev) => ({ ...prev, destination: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <select value={form.vehicle} onChange={(e) => setForm((prev) => ({ ...prev, vehicle: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-              <option value="">Select vehicle</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.registration_number} - {v.name_model}</option>
-              ))}
-            </select>
-            <select value={form.driver} onChange={(e) => setForm((prev) => ({ ...prev, driver: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-              <option value="">Select driver</option>
-              {drivers.map((d) => (
-                <option key={d.id} value={d.id}>{d.name} ({d.license_number})</option>
-              ))}
-            </select>
-            <input type="number" min="0.01" step="0.01" placeholder="Cargo Weight (kg)" value={form.cargo_weight_kg} onChange={(e) => setForm((prev) => ({ ...prev, cargo_weight_kg: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="number" min="0.01" step="0.01" placeholder="Planned Distance (km)" value={form.planned_distance_km} onChange={(e) => setForm((prev) => ({ ...prev, planned_distance_km: e.target.value }))} required className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="number" min="0" step="0.01" placeholder="Revenue" value={form.revenue} onChange={(e) => setForm((prev) => ({ ...prev, revenue: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900" />
-            <select value={form.load_type} onChange={(e) => setForm((prev) => ({ ...prev, load_type: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-              <option value="">Load Type</option>
-              <option value="Palletized">Palletized</option>
-              <option value="Loose">Loose</option>
-              <option value="Container">Container</option>
-            </select>
-            <select value={form.freight_type} onChange={(e) => setForm((prev) => ({ ...prev, freight_type: e.target.value }))} className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-              <option value="">Freight Type</option>
-              <option value="FMCG">FMCG</option>
-              <option value="Industrial">Industrial</option>
-              <option value="Perishable">Perishable</option>
-              <option value="Pharmaceutical">Pharmaceutical</option>
-              <option value="Automotive">Automotive</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div className="flex gap-3">
-            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg">Create</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg">Cancel</button>
-          </div>
-        </form>
-      )}
-=======
           <button 
             onClick={() => window.location.href = '/trips/new'}
             className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
@@ -329,7 +225,6 @@ export default function LiveBoardPage() {
           </button>
         )}
       </div>
->>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
 
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
         {/* Draft Column */}
@@ -387,6 +282,7 @@ export default function LiveBoardPage() {
             {board.cancelled.length === 0 && <p className="text-center text-sm text-red-500/50 mt-4">No cancelled trips</p>}
           </div>
         </div>
+      </div>
     </div>
   );
 }
