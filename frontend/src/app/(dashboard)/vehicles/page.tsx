@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface Vehicle {
   id: number;
@@ -25,6 +26,20 @@ export default function VehiclesPage() {
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager']);
 
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    registration_number: '',
+    name_model: '',
+    type: 'Truck',
+    max_load_capacity_kg: '',
+    odometer_km: '0',
+    acquisition_cost: '0',
+    region: ''
+  });
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [error, setError] = useState('');
+
   useEffect(() => {
     fetchVehicles();
   }, []);
@@ -41,6 +56,33 @@ export default function VehiclesPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitLoading(true);
+    setError('');
+    try {
+      await api.post('/vehicles/', formData);
+      setIsModalOpen(false);
+      setFormData({
+        registration_number: '',
+        name_model: '',
+        type: 'Truck',
+        max_load_capacity_kg: '',
+        odometer_km: '0',
+        acquisition_cost: '0',
+        region: ''
+      });
+      fetchVehicles();
+      toast.success('Vehicle created successfully!');
+    } catch (err: any) {
+      const msg = err.response?.data?.registration_number?.[0] || err.response?.data?.detail || 'Failed to create vehicle';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -62,14 +104,17 @@ export default function VehiclesPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 relative">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Vehicle Registry</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage your fleet inventory and statuses</p>
         </div>
         {canEdit && (
-          <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
+          >
             <Plus className="w-5 h-5 mr-2" />
             Add Vehicle
           </button>
@@ -123,8 +168,14 @@ export default function VehiclesPage() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
                 {filteredVehicles.length > 0 ? (
                   filteredVehicles.map((vehicle) => (
-                    <tr key={vehicle.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{vehicle.registration_number}</td>
+                    <tr 
+                      key={vehicle.id} 
+                      onClick={() => window.location.href = `/vehicles/${vehicle.id}`}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center">
+                        {vehicle.registration_number}
+                      </td>
                       <td className="px-6 py-4">
                         {vehicle.name_model}
                         <span className="block text-xs text-slate-500">{vehicle.type}</span>
@@ -150,6 +201,72 @@ export default function VehiclesPage() {
           )}
         </div>
       </div>
+
+      {/* Add Vehicle Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Add New Vehicle</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              {error && <div className="text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{error}</div>}
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Registration Number</label>
+                <input required value={formData.registration_number} onChange={e => setFormData({...formData, registration_number: e.target.value.toUpperCase()})} type="text" placeholder="e.g. MH12AB1234" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Model Name</label>
+                <input required value={formData.name_model} onChange={e => setFormData({...formData, name_model: e.target.value})} type="text" placeholder="e.g. Tata Prima" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                  <select required value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white">
+                    <option value="Van">Van</option>
+                    <option value="Mini-truck">Mini-truck</option>
+                    <option value="Truck">Truck</option>
+                    <option value="Heavy-truck">Heavy-truck</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacity (kg)</label>
+                  <input required value={formData.max_load_capacity_kg} onChange={e => setFormData({...formData, max_load_capacity_kg: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Odometer (km)</label>
+                  <input required value={formData.odometer_km} onChange={e => setFormData({...formData, odometer_km: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cost (₹)</label>
+                  <input required value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: e.target.value})} type="number" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Region</label>
+                <input required value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} type="text" placeholder="e.g. West Zone" className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white" />
+              </div>
+
+              <div className="pt-4 flex justify-end space-x-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" disabled={submitLoading} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50">
+                  {submitLoading ? 'Saving...' : 'Save Vehicle'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

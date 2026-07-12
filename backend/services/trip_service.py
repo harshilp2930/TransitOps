@@ -166,7 +166,8 @@ def complete_trip(trip_id: int, final_odometer_km, fuel_consumed_l, user) -> "Tr
         # BR7: Restore vehicle and driver to Available
         vehicle.status = Vehicle.AVAILABLE
         vehicle.odometer_km = final_odometer_km
-        vehicle.save(update_fields=["status", "odometer_km", "updated_at"])
+        vehicle.last_depot_return = timezone.now()  # BR12: update depot return time
+        vehicle.save(update_fields=["status", "odometer_km", "last_depot_return", "updated_at"])
 
         driver.status = Driver.AVAILABLE
         driver.save(update_fields=["status", "updated_at"])

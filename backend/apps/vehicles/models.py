@@ -41,9 +41,11 @@ class Vehicle(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=VAN)
     max_load_capacity_kg = models.DecimalField(max_digits=10, decimal_places=2)
     odometer_km = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tyre_changed_odometer_km = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # BR14
     acquisition_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=AVAILABLE)
     region = models.CharField(max_length=100, blank=True, default="")
+    last_depot_return = models.DateTimeField(null=True, blank=True)  # BR12
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -58,6 +60,19 @@ class Vehicle(models.Model):
     def is_available_for_dispatch(self):
         """BR2: Only Available vehicles can be dispatched."""
         return self.status == self.AVAILABLE
+
+    @property
+    def needs_tyre_change(self):
+        """BR14: Tyre wear threshold flag (40,000 km)"""
+        return (self.odometer_km - self.tyre_changed_odometer_km) >= 40000
+
+    @property
+    def is_depot_overdue(self):
+        """BR12: Flag vehicles that haven't returned to depot in > 7 days."""
+        if not self.last_depot_return:
+            return False
+        from django.utils import timezone
+        return (timezone.now() - self.last_depot_return).days > 7
 
 
 class VehicleDocument(models.Model):

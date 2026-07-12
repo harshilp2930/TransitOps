@@ -40,14 +40,16 @@ class VehicleSerializer(serializers.ModelSerializer):
     documents = VehicleDocumentSerializer(many=True, read_only=True)
     total_operational_cost = serializers.SerializerMethodField()
     is_available_for_dispatch = serializers.BooleanField(read_only=True)
+    needs_tyre_change = serializers.BooleanField(read_only=True)
+    is_depot_overdue = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
-            "max_load_capacity_kg", "odometer_km", "acquisition_cost",
-            "status", "region", "created_at", "updated_at",
-            "documents", "total_operational_cost", "is_available_for_dispatch"
+            "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
+            "status", "region", "last_depot_return", "created_at", "updated_at",
+            "documents", "total_operational_cost", "is_available_for_dispatch", "needs_tyre_change", "is_depot_overdue"
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
@@ -81,6 +83,6 @@ class VehicleListSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
-            "max_load_capacity_kg", "odometer_km", "acquisition_cost",
-            "status", "region", "created_at"
+            "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
+            "status", "region", "last_depot_return", "created_at", "needs_tyre_change", "is_depot_overdue"
         ]

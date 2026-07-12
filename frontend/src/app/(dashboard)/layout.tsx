@@ -36,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: 'Drivers', href: '/drivers', icon: Users, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
     { label: 'Maintenance', href: '/maintenance', icon: Wrench, roles: ['Fleet Manager'] },
     { label: 'Finance', href: '/finance', icon: FileText, roles: ['Financial Analyst', 'Fleet Manager'] },
+    { label: 'Settings', href: '/settings', icon: Settings, roles: ['Fleet Manager'] },
   ];
 
   return (

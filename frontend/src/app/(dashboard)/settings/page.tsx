@@ -1,0 +1,95 @@
+'use client';
+
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Shield, Users, Save, AlertTriangle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
+export default function SettingsPage() {
+  const { hasRole } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  if (!hasRole(['Fleet Manager'])) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+        <Shield className="w-12 h-12 mb-4 text-slate-300" />
+        <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Access Restricted</h2>
+        <p>You do not have permission to view or edit system settings.</p>
+      </div>
+    );
+  }
+
+  const handleSave = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('Settings saved successfully!');
+    }, 1000);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">System Settings</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage global application settings and roles</p>
+        </div>
+        <button 
+          onClick={handleSave}
+          disabled={loading}
+          className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 px-4 py-2 rounded-lg font-medium transition-colors flex items-center disabled:opacity-50"
+        >
+          {loading ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Changes</>}
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center">
+            <Users className="w-5 h-5 mr-2 text-blue-500" /> Role-Based Access Control (RBAC)
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Dynamically manage what each role is allowed to do within TransitOps.</p>
+        </div>
+        
+        <div className="p-0 overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400">
+              <tr>
+                <th className="px-6 py-4">Permission</th>
+                <th className="px-6 py-4 text-center">Fleet Manager</th>
+                <th className="px-6 py-4 text-center">Dispatcher</th>
+                <th className="px-6 py-4 text-center">Safety Officer</th>
+                <th className="px-6 py-4 text-center">Financial Analyst</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
+              {['Create & Edit Vehicles', 'Manage Drivers', 'Dispatch Trips', 'Cancel Trips', 'View Financial Reports', 'Log Maintenance', 'Manage Settings'].map((perm, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{perm}</td>
+                  <td className="px-6 py-4 text-center">
+                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <input type="checkbox" defaultChecked={perm === 'Dispatch Trips' || perm === 'Cancel Trips'} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <input type="checkbox" defaultChecked={perm === 'Manage Drivers' || perm === 'Create & Edit Vehicles' || perm === 'Log Maintenance'} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <input type="checkbox" defaultChecked={perm === 'View Financial Reports'} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border-t border-slate-200 dark:border-slate-800 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800 dark:text-amber-400">
+            <strong>Note:</strong> Changes to the RBAC matrix will take effect the next time users log in. Be careful when revoking permissions from the Fleet Manager role.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

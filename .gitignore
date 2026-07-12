@@ -53,6 +53,7 @@ venv.bak/
 db.sqlite3
 db.sqlite3-shm
 db.sqlite3-wal
+transitops_dev.sqlite3
 
 # macOS
 .DS_Store

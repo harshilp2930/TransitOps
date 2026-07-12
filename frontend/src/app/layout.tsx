@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: "Next-gen fleet management and dispatch platform",
 };
 
+import { Toaster } from 'react-hot-toast';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,6 +25,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
             {children}
+            <Toaster position="top-right" />
           </AuthProvider>
         </ThemeProvider>
       </body>
