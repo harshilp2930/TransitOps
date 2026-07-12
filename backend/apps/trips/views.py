@@ -68,7 +68,14 @@ class TripViewSet(viewsets.ModelViewSet):
         return TripSerializer
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        trip = serializer.save(created_by=self.request.user)
+        # compute run_km = arrival_km - departure_km if both present
+        try:
+            if trip.arrival_km is not None and trip.departure_km is not None:
+                trip.run_km = trip.arrival_km - trip.departure_km
+                trip.save(update_fields=["run_km"])
+        except Exception:
+            pass
 
     def create(self, request, *args, **kwargs):
         """Override create to log serializer validation errors for debugging."""
