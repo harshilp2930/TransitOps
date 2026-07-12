@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ApiError = {
@@ -24,6 +24,7 @@ interface Trip {
   status: string;
   cargo_weight_kg: string;
   revenue: string;
+  expected_return_date?: string | null;
 }
 
 interface BoardData {
@@ -158,7 +159,15 @@ export default function LiveBoardPage() {
         <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={`${trip.source} to ${trip.destination}`}>
           {trip.source} → {trip.destination}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5">{trip.cargo_weight_kg} kg</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-xs text-slate-500">{trip.cargo_weight_kg} kg</p>
+          {trip.status === 'Dispatched' && trip.expected_return_date && new Date(trip.expected_return_date) < new Date() && (
+            <span className="flex items-center text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded" title={`Overdue since ${trip.expected_return_date}`}>
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Overdue
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1.5 mb-4">
