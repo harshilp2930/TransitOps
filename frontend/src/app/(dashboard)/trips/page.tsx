@@ -145,9 +145,7 @@ export default function LiveBoardPage() {
   const renderTripCard = (trip: Trip, col: string) => (
     <div key={trip.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
       <div className="flex justify-between items-start mb-2">
-        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded">
-          {trip.trip_code}
-        </span>
+        <EditableTripCode trip={trip} onUpdated={() => fetchBoard()} />
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">₹{parseFloat(trip.revenue).toLocaleString()}</span>
       </div>
       
@@ -199,6 +197,42 @@ export default function LiveBoardPage() {
       )}
     </div>
   );
+
+  function EditableTripCode({ trip, onUpdated }: { trip: Trip; onUpdated?: () => void }) {
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(trip.trip_code);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => setValue(trip.trip_code), [trip.trip_code]);
+
+    const save = async () => {
+      if (!value || value === trip.trip_code) { setEditing(false); return; }
+      setSaving(true);
+      try {
+        await api.patch(`/trips/${trip.id}/set-code/`, { trip_code: value });
+        setEditing(false);
+        onUpdated && onUpdated();
+      } catch (err) {
+        alert((err as any)?.response?.data?.detail || 'Failed to update trip code');
+      } finally { setSaving(false); }
+    };
+
+    return (
+      <div>
+        {!editing ? (
+          <button onClick={() => setEditing(true)} className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded">
+            {trip.trip_code}
+          </button>
+        ) : (
+          <div className="flex items-center">
+            <input value={value} onChange={e => setValue(e.target.value)} className="font-mono text-xs font-bold px-2 py-1 w-28 border rounded mr-2" />
+            <button onClick={save} disabled={saving} className="px-2 py-1 bg-blue-600 text-white rounded text-xs mr-1">{saving ? '...' : 'Save'}</button>
+            <button onClick={() => { setEditing(false); setValue(trip.trip_code); }} className="px-2 py-1 bg-slate-200 rounded text-xs">Cancel</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
