@@ -9,7 +9,7 @@ class TripLRDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TripLRDetail
         fields = "__all__"
-        read_only_fields = ["id", "trip", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 class TripSerializer(serializers.ModelSerializer):
     vehicle_detail = VehicleListSerializer(source="vehicle", read_only=True)
