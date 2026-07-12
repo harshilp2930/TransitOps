@@ -117,8 +117,8 @@ export default function AddTripPage() {
     try {
       // 1. Create Trip — sanitize types: send null for empty, numbers for numeric fields
       const payload = {
-        source: formData.source || null,
-        destination: formData.destination || null,
+        source: formData.source || '',
+        destination: formData.destination || '',
         vehicle: formData.vehicle ? Number(formData.vehicle) : null,
         driver: formData.driver ? Number(formData.driver) : null,
         trip_date: formData.trip_date || null,
