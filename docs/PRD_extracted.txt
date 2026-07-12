@@ -1,0 +1,270 @@
+--- Page 1 ---
+TransitOps
+Smart Transport Operations Platform
+TransitOps Team
+July 2026 · v1.0
+
+--- Page 2 ---
+1. Executive Summary
+2. Problem Statement
+3. Product Vision & Differentiation
+3.1 Vision
+3.2 How this differs from Ecount-style tools
+3.3 USP Statement
+4. Target Users & Personas
+5. Scope
+5.1 In Scope (MVP — must ship in 8 hours)
+5.2 In Scope (Enhancement — build if time allows, after MVP is stable)
+5.3 Out of Scope / Stretch (post-hackathon roadmap)
+6. Functional Requirements
+6.1 Authentication & RBAC
+6.2 Dashboard
+6.3 Vehicle Registry
+6.4 Driver Management
+6.5 Trip Management
+6.6 Maintenance
+6.7 Fuel & Expense Management
+6.8 Reports & Analytics
+6.9 Settings & RBAC
+7. Business Rules (Mandatory + Derived)
+8. Non-Functional Requirements
+9. Data Entities (Overview)
+10. Acceptance Criteria (Sample — Core Flow)
+11. MVP Prioritization (MoSCoW — for the 8-hour build)
+12. Risks & Mitigations
+
+--- Page 3 ---
+1. Executive Summary
+TransitOps is a centralized, role-based transport operations platform that digitizes the full lifecycle of fleet management
+for logistics companies — from vehicle registration and driver compliance to trip dispatch, maintenance, fuel/expense
+tracking, and financial analytics.
+Most SMB logistics operators today run this entire workflow on spreadsheets and paper logbooks (or on generic tools like
+Ecount), leading to double-booked vehicles, missed maintenance, expired driver licenses going unnoticed, and no real
+visibility into per-vehicle profitability. TransitOps replaces that with one login-gated system where every action —
+dispatching a trip, logging fuel, closing a maintenance ticket — automatically updates vehicle/driver status and rolls up
+into cost and performance analytics.
+This document defines the product scope, functional requirements, business rules, and MVP prioritization for an 8-hour
+build.
+2. Problem Statement
+Transport and logistics SMBs typically manage fleet operations through disconnected tools: WhatsApp for dispatch, Excel
+for fuel logs, paper registers for maintenance, and manual reminders (or none) for license/document expiry. This causes:
+Vehicles or drivers double-booked onto overlapping trips
+Suspended or license-expired drivers still being assigned
+Overloaded vehicles (cargo exceeding rated capacity)
+Missed maintenance leading to breakdowns
+No visibility into which vehicle is actually profitable (fuel + maintenance cost vs revenue)
+No early warning when a driver/vehicle’s fuel efficiency degrades — often the first sign of engine wear, tyre
+problems, or fuel pilferage
+3. Product Vision & Differentiation
+3.1 Vision
+A single system where every stakeholder — Fleet Manager, Dispatcher, Safety Officer, Financial Analyst — works off the
+same live data, and the system itself enforces the business rules that today rely on someone remembering them.
+3.2 How this differs from Ecount-style tools
+Dimension Typical Ecount-style tool TransitOps
+Data model Asset-centric (vehicle records, logs) Trip-centric — every cost/event is tied back
+to a trip, vehicle, and driver simultaneously
+Fuel tracking Manual log entry Log entry + auto mileage calc (km/litre) +
+rolling-average deviation alerts
+Maintenance Calendar/odometer-based service Service reminders plus per-tyre position-
+reminders wise wear tracking and swap history
+Financials Expense logging Expense logging auto-rolled up into per-
+vehicle ROI, category-wise cost breakdown,
+and cost-per-km
+Trip patterns Trips treated as isolated records Trip-chain / circular-route awareness —
+flags vehicles that haven’t returned to
+home depot within an expected cycle
+
+--- Page 4 ---
+Access Often single admin view True RBAC — 4 distinct role dashboards,
+each scoped to what that role needs
+3.3 USP Statement
+“TransitOps doesn’t just log what happened to your fleet — it tells you what it’s costing you, and warns you before it
+becomes a breakdown.”
+4. Target Users & Personas
+Role Responsibilities Primary Screens
+Fleet Manager Vehicle lifecycle, maintenance, tyre/asset Fleet, Vehicle Registry, Maintenance,
+health, acquisition cost tracking Analytics
+Dispatcher Creates trips, assigns vehicle + driver, Dashboard, Trip Dispatcher, Fleet (read)
+monitors active deliveries
+Safety Officer Driver compliance, license validity, safety Drivers, Compliance alerts, Analytics
+scores (safety)
+Financial Analyst Expense review, fuel cost, maintenance Fuel & Expense, Analytics, Reports export
+cost, profitability/ROI
+5. Scope
+5.1 In Scope (MVP — must ship in 8 hours)
+Authentication + RBAC (4 roles)
+Dashboard with KPIs and filters
+Vehicle Registry (CRUD, unique reg. no., status lifecycle)
+Driver Management (CRUD, license expiry tracking, status lifecycle)
+Trip Management with full validation lifecycle (Draft → Dispatched → Completed → Cancelled)
+Maintenance module with automatic vehicle status transitions
+Fuel & Expense logging with automatic operational cost rollup
+Reports & Analytics (fuel efficiency, utilization, cost, ROI) + CSV export
+Load type / cargo capacity / freight type fields on trips
+Category-wise expense rollup visible on each vehicle’s profile
+5.2 In Scope (Enhancement — build if time allows, after MVP is stable)
+Mileage anomaly detection (rolling average + deviation alert)
+Vehicle document panel (RC, Insurance, PUC, Permit) with expiry reminders on dashboard
+Trip-chain / depot-return tracking (flag vehicles overdue for return-to-base)
+License/document expiry email or in-app notification digest
+5.3 Out of Scope / Stretch (post-hackathon roadmap)
+Auto-fill of vehicle details from government RC/PUC number lookup (stubbed with mock service in MVP; real
+integration is a roadmap item requiring paid API/govt access)
+2D drag-and-drop tyre position management with per-tyre km-by-position tracking
+Dark mode
+PDF export of reports (CSV is mandatory; PDF is bonus per PS)
+Native mobile app
+
+--- Page 5 ---
+6. Functional Requirements
+6.1 Authentication & RBAC
+Email + password login; session via JWT (access + refresh token)
+Role selected/assigned at account level, not selectable at login (mock login screen shows role selector for
+demo/testing convenience only)
+Only authenticated users can access any application route
+Failed login lockout after 5 attempts (per wireframe)
+Each role is scoped to specific navigation items and API permissions (see RBAC matrix in Design Doc §5)
+6.2 Dashboard
+KPI tiles: Active Vehicles, Available Vehicles, Vehicles in Maintenance, Active Trips, Pending Trips, Drivers on Duty,
+Fleet Utilization %
+Filters: Vehicle Type, Status, Region
+Recent Trips table (trip id, vehicle, driver, status, ETA)
+Vehicle Status distribution (Available / On Trip / In Shop / Retired)
+Reminders panel (enhancement): upcoming license/document expiries, mileage anomaly flags, vehicles overdue for
+depot return
+6.3 Vehicle Registry
+Fields: Registration Number (unique, validated), Name/Model, Type (Van/Truck/Mini/etc.), Max Load Capacity (kg),
+Odometer, Acquisition Cost, Status
+Status values: Available, On Trip, In Shop, Retired
+Enhancement — Vehicle Document sub-panel: RC Book, Insurance, PUC, Permit, each with number + expiry date;
+feeds the dashboard reminder panel
+Enhancement — vehicle profile shows lifetime category-wise expense totals (Fuel / Maintenance / Tolls / Misc) and
+computed ROI
+6.4 Driver Management
+Fields: Name, License Number, License Category, License Expiry Date, Contact Number, Safety Score, Status
+Status values: Available, On Trip, Off Duty, Suspended
+Expired license or Suspended status automatically excludes driver from trip assignment pool
+Safety Officer role can adjust Safety Score and Suspended status; other roles view read-only
+6.5 Trip Management
+Create trip: Source, Destination, Vehicle (available only), Driver (available only), Cargo Weight, Planned Distance
+Enhancement fields: Load Type (e.g., Palletized/Loose/Container), Freight Type (what is being carried — e.g.,
+FMCG, Industrial, Perishable), Declared Cargo Capacity used (%)
+Trip lifecycle: Draft → Dispatched → Completed → Cancelled
+Live board shows trips grouped by lifecycle stage
+On Completion: capture final odometer + fuel consumed → auto-creates a fuel log entry tied to that trip
+Enhancement — Trip chaining: system tracks the sequence of trips per vehicle; if a vehicle has not returned to
+its home depot within a configurable number of trips/days, it is flagged on the dashboard reminder panel
+6.6 Maintenance
+Create maintenance record: Vehicle, Service Type, Cost, Date, Status (In Shop / Completed)
+Creating an active maintenance record automatically sets vehicle status to In Shop and removes it from dispatch
+
+--- Page 6 ---
+pool
+Closing maintenance restores vehicle to Available (unless vehicle is Retired)
+Enhancement (stretch) — Tyre Management sub-module:
+Register tyres per vehicle with position (e.g., Front-Left, Front-Right, Rear-Left-Outer, Rear-Left-Inner, Rear-
+Right-Outer, Rear-Right-Inner — configurable by axle count)
+Each tyre tracks cumulative km run at each position it has occupied
+Position changes (swap/rotation) logged with date + odometer reading, preserving km history per position
+2D visual truck layout with drag-and-drop to reassign tyre position (stretch UI goal; can ship as a simple table-
+based position editor if time is short)
+Wear analytics: flags tyres that reached replacement threshold faster than fleet average
+6.7 Fuel & Expense Management
+Fuel log: Vehicle, Date, Litres, Cost — can be entered standalone or auto-created from trip completion
+Other expenses: Toll, Misc, tied to a trip or vehicle
+Enhancement — Mileage intelligence: every fuel log captures odometer-at-refuel; system computes km/litre for
+that fill-up and updates the vehicle’s rolling average mileage
+If a fill-up’s mileage falls more than a configurable threshold (e.g., 15%) below the vehicle’s (or that driver’s)
+rolling average across the last N fill-ups, the system raises a Mileage Deviation Alert on the dashboard and
+vehicle profile
+Total Operational Cost (Auto) = Fuel + Maintenance, computed per vehicle
+Enhancement: every expense (fuel, toll, maintenance, misc) rolls up into the vehicle’s profile as category-wise
+lifetime totals, visible in Reports & the vehicle detail view
+6.8 Reports & Analytics
+Fuel Efficiency (Distance / Fuel, km/l)
+Fleet Utilization %
+Operational Cost (aggregate and per-vehicle)
+Vehicle ROI = (Revenue − (Maintenance + Fuel)) / Acquisition Cost
+Monthly Revenue trend chart
+Top Costliest Vehicles chart
+Enhancement: Category-wise expense breakdown per vehicle (pie/bar), Mileage trend line with anomaly markers,
+Tyre wear summary (if tyre module is built)
+CSV export (mandatory); PDF export (bonus)
+6.9 Settings & RBAC
+General depot settings: name, currency, distance unit
+Role-based access matrix editable by admin/Fleet Manager (view-only for other roles)
+7. Business Rules (Mandatory + Derived)
+1. Vehicle registration number must be unique.
+2. Retired or In Shop vehicles never appear in the dispatch/vehicle-selection pool.
+3. Drivers with expired licenses or Suspended status cannot be assigned to trips.
+4. A driver or vehicle already marked On Trip cannot be assigned to another trip.
+5. Cargo Weight must not exceed the vehicle’s maximum load capacity — dispatch is blocked otherwise, with a clear
+validation message (as shown in wireframe).
+6. Dispatching a trip automatically sets both vehicle and driver status to On Trip.
+7. Completing a trip automatically sets both vehicle and driver status back to Available, and creates the associated
+fuel log entry.
+8. Cancelling a dispatched trip restores vehicle and driver to Available.
+9. Creating an active maintenance record automatically sets vehicle status to In Shop.
+
+--- Page 7 ---
+10. Closing maintenance restores vehicle to Available, unless the vehicle is Retired.
+11. (Enhancement) A fuel log entry more than [threshold]% below the vehicle’s rolling average mileage triggers a
+Mileage Deviation Alert.
+12. (Enhancement) A vehicle not returned to its designated home depot within [N] trips or [N] days triggers a Depot
+Return Overdue flag.
+13. (Enhancement) A document (RC/Insurance/PUC/Permit) within [N] days of expiry triggers a reminder on the
+dashboard; an expired document blocks the vehicle from dispatch (configurable — off by default for MVP demo to
+avoid blocking test data).
+14. (Stretch) A tyre that reaches its position-specific wear threshold before the fleet-average km is flagged for early-
+replacement review.
+8. Non-Functional Requirements
+Responsive web UI (desktop-first, usable on tablet)
+API response time target: < 500ms for standard CRUD/list endpoints
+Role-based authorization enforced at the API layer, not just hidden in UI
+Data integrity: all status transitions happen via transactional service-layer calls, never direct field edits, to prevent
+inconsistent states
+Auditable: key transitions (dispatch, complete, cancel, maintenance open/close) timestamped and attributable to
+the acting user
+9. Data Entities (Overview)
+Users, Roles, Vehicles, Vehicle Documents, Drivers, Trips, Trip Expenses (Fuel Logs), Other Expenses, Maintenance
+Records, Tyres, Tyre Position History, Notifications/Reminders.
+Full schema with fields, keys, and relationships is defined in the TransitOps Design Document, Section 3.
+10. Acceptance Criteria (Sample — Core Flow)
+Given the example workflow in the problem statement:
+1. Register vehicle ‘Van-05’ (capacity 500kg, status Available) → appears in Vehicle Registry, unique reg. no. enforced.
+2. Register driver ‘Alex’ with valid license → appears in Available drivers pool.
+3. Create trip, Cargo Weight 450kg → system validates 450 ≤ 500 → dispatch allowed.
+4. Dispatch → Vehicle & Driver status become On Trip; both disappear from other trips’ selection pools.
+5. Complete trip (final odometer + fuel consumed) → Vehicle & Driver return to Available; fuel log auto-created;
+mileage computed.
+6. Create maintenance record (Oil Change) → Vehicle status becomes In Shop, hidden from dispatch.
+7. Close maintenance → Vehicle returns to Available.
+8. Reports reflect updated operational cost and fuel efficiency immediately.
+Each step above must be independently testable and demoable.
+11. MVP Prioritization (MoSCoW — for the 8-hour build)
+Priority Items
+Must Auth+RBAC, Vehicle Registry CRUD, Driver CRUD, Trip lifecycle +
+all 8 mandatory business rules, Maintenance status automation,
+Fuel/Expense logging + operational cost calc, Dashboard KPIs,
+Reports (4 core metrics) + CSV export
+
+--- Page 8 ---
+Should Load type/freight type fields, category-wise expense rollup on
+vehicle profile, mileage deviation alert (basic version),
+filters/search across modules
+Could Vehicle document panel + expiry reminders, depot-return-overdue
+flag, charts polish (top costliest vehicles, monthly revenue)
+Won’t (this hackathon) Tyre 2D drag-drop module, real RC/PUC government lookup, dark
+mode, PDF export, mobile app, email delivery (in-app notification
+only)
+12. Risks & Mitigations
+Risk Mitigation
+8-hour window too tight for full stack + all enhancements Strict MoSCoW cut line; Must-list is independently demoable end-
+to-end
+Real vehicle-document lookup APIs require paid access/KYC Stub with a mock lookup service returning sample data,
+documented as a roadmap item
+Tyre 2D UI is complex for remaining time Ship as simple position-select dropdown + history table if drag-
+drop isn’t feasible
+Business-rule bugs (e.g., race condition on double-dispatch) Enforce all transitions via atomic DB transactions in the service
+layer, not client-side checks alone
+
