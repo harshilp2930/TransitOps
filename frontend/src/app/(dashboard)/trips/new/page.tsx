@@ -75,6 +75,51 @@ export default function AddTripPage() {
     }
   }, []);
 
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [showDriverModal, setShowDriverModal] = useState(false);
+  const [vehicleForm, setVehicleForm] = useState({ registration_number: '', odometer_km: '0' });
+  const [driverForm, setDriverForm] = useState({ name: '', license_number: '', contact_number: '' });
+  const [vehicleLoading, setVehicleLoading] = useState(false);
+  const [driverLoading, setDriverLoading] = useState(false);
+
+  const createVehicle = async () => {
+    setVehicleLoading(true);
+    try {
+      const res = await api.post('/vehicles/', vehicleForm);
+      const v = res.data;
+      const newV = { id: v.id, registration_number: v.registration_number || vehicleForm.registration_number };
+      setVehicles(prev => [newV, ...prev]);
+      setFormData(prev => ({ ...prev, vehicle: String(newV.id) }));
+      setShowVehicleModal(false);
+      setVehicleForm({ registration_number: '', odometer_km: '0' });
+      toast.success('Vehicle added');
+    } catch (err: unknown) {
+      const error = err as any;
+      toast.error(error.response?.data?.registration_number?.[0] || 'Failed to add vehicle');
+    } finally {
+      setVehicleLoading(false);
+    }
+  };
+
+  const createDriver = async () => {
+    setDriverLoading(true);
+    try {
+      const res = await api.post('/drivers/', driverForm);
+      const d = res.data;
+      const newD = { id: d.id, name: d.name || driverForm.name };
+      setDrivers(prev => [newD, ...prev]);
+      setFormData(prev => ({ ...prev, driver: String(newD.id) }));
+      setShowDriverModal(false);
+      setDriverForm({ name: '', license_number: '', contact_number: '' });
+      toast.success('Driver added');
+    } catch (err: unknown) {
+      const error = err as any;
+      toast.error(error.response?.data?.detail || 'Failed to add driver');
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
 
 
   const calculateTotalFreight = () => {
@@ -202,6 +247,41 @@ export default function AddTripPage() {
           </button>
         </div>
       </div>
+      {/* Inline Modals for quick add */}
+      {showVehicleModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowVehicleModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-md shadow-lg">
+            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Vehicle (Quick)</h3>
+            <div className="space-y-3">
+              <input placeholder="Registration (e.g. MH12AB1234)" value={vehicleForm.registration_number} onChange={e => setVehicleForm({...vehicleForm, registration_number: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Initial Odometer (km)" value={vehicleForm.odometer_km} onChange={e => setVehicleForm({...vehicleForm, odometer_km: e.target.value})} type="number" className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={() => setShowVehicleModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
+              <button onClick={createVehicle} disabled={vehicleLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{vehicleLoading ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDriverModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDriverModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-5 w-full max-w-md shadow-lg">
+            <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Add Driver (Quick)</h3>
+            <div className="space-y-3">
+              <input placeholder="Driver Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="License Number" value={driverForm.license_number} onChange={e => setDriverForm({...driverForm, license_number: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+              <input placeholder="Contact Number" value={driverForm.contact_number} onChange={e => setDriverForm({...driverForm, contact_number: e.target.value})} className="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={() => setShowDriverModal(false)} className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded">Cancel</button>
+              <button onClick={createDriver} disabled={driverLoading} className="px-3 py-2 bg-blue-600 text-white rounded">{driverLoading ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left/Top Area: Core Trip Details */}
@@ -222,7 +302,7 @@ export default function AddTripPage() {
                 <label className="text-sm text-slate-500 mr-2">Truck</label>
                 <select value={formData.vehicle} onChange={e => {
                     const v = e.target.value;
-                    if (v === '__add__') { window.location.href = '/vehicles/new'; return; }
+                    if (v === '__add__') { setShowVehicleModal(true); return; }
                     setFormData({...formData, vehicle: v});
                   }} className="px-2 py-1 border rounded bg-slate-50 dark:bg-slate-950">
                   <option value="">Select</option>
@@ -255,7 +335,7 @@ export default function AddTripPage() {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vehicle</label>
                   <select value={formData.vehicle} onChange={e => {
                       const v = e.target.value;
-                      if (v === '__add__') { window.location.href = '/vehicles/new'; return; }
+                      if (v === '__add__') { setShowVehicleModal(true); return; }
                       setFormData({...formData, vehicle: v});
                     }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
                     <option value="">Select Vehicle</option>
@@ -267,7 +347,7 @@ export default function AddTripPage() {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Driver</label>
                   <select value={formData.driver} onChange={e => {
                       const v = e.target.value;
-                      if (v === '__add__') { window.location.href = '/drivers/new'; return; }
+                      if (v === '__add__') { setShowDriverModal(true); return; }
                       setFormData({...formData, driver: v});
                     }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
                     <option value="">Select Driver</option>
