@@ -260,7 +260,7 @@ export default function AddTripPage() {
       setVehicles(prev => [newV, ...prev]);
       setFormData(prev => ({ ...prev, vehicle: String(newV.id) }));
       setShowVehicleModal(false);
-      setVehicleForm({ registration_number: '', odometer_km: '0' });
+      setVehicleForm({ registration_number: '', name_model: '', type: 'Truck', max_load_capacity_kg: '', odometer_km: '0', acquisition_cost: '0', region: '', owner_name: '', account_reference: '', status: 'Available' });
       toast.success('Vehicle added');
     } catch (err: unknown) {
       const error = err as any;
@@ -276,6 +276,19 @@ export default function AddTripPage() {
       goods_description: '', loading_weight: '0', unloading_weight: '0', party_rate: '0', 
       total_freight: '0', shortage_amount: '0'
     }]);
+  };
+
+  const handleLrChange = (index: number, field: string, value: string) => {
+    const newLrs = [...lrDetails];
+    (newLrs[index] as any)[field] = value;
+    
+    if (field === 'loading_weight' || field === 'party_rate') {
+      const weight = Number(newLrs[index].loading_weight) || 0;
+      const rate = Number(newLrs[index].party_rate) || 0;
+      newLrs[index].total_freight = String(weight * rate);
+    }
+    
+    setLrDetails(newLrs);
   };
 
   const removeLrRow = (index: number) => {
