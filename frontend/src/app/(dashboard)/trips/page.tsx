@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +42,7 @@ interface DriverOption {
 }
 
 export default function LiveBoardPage() {
+  const router = useRouter();
   const [board, setBoard] = useState<BoardData>({ draft: [], dispatched: [], completed: [], cancelled: [] });
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
@@ -143,7 +145,7 @@ export default function LiveBoardPage() {
   };
 
   const renderTripCard = (trip: Trip, col: string) => (
-    <div key={trip.id} onClick={() => openTripModal(trip.id)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
+    <div key={trip.id} onClick={() => router.push(`/trips/new?tripId=${trip.id}`)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
       <div className="flex justify-between items-start mb-2">
         <EditableTripCode trip={trip} onUpdated={() => fetchBoard()} />
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">₹{parseFloat(trip.revenue).toLocaleString()}</span>
