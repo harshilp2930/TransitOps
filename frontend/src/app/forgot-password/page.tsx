@@ -3,21 +3,27 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, CheckCircle2 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Stubbing the password reset email process
-    setTimeout(() => {
+    try {
+      await api.post('/auth/forgot-password/', { email: email });
+    } catch (err) {
+      // Typically, we don't show specific errors to avoid email enumeration,
+      // so we will show success regardless, unless it's a 500 error.
+      console.error(err);
+    } finally {
       setIsLoading(false);
       setIsSuccess(true);
-    }, 1500);
+    }
   };
 
   if (isSuccess) {

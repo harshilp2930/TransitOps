@@ -160,7 +160,18 @@ export default function AddTripPage() {
       setVehicles(prev => [newV, ...prev]);
       setFormData(prev => ({ ...prev, vehicle: String(newV.id) }));
       setShowVehicleModal(false);
-      setVehicleForm({ registration_number: '', odometer_km: '0' });
+      setVehicleForm({
+        registration_number: '',
+        name_model: '',
+        type: 'Van',
+        max_load_capacity_kg: '1000',
+        odometer_km: '0',
+        acquisition_cost: '0',
+        region: '',
+        owner_name: '',
+        account_reference: '',
+        status: 'Available',
+      });
       toast.success('Vehicle added');
     } catch (err: unknown) {
       const error = err as any;

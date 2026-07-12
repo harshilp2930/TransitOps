@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Truck, CheckCircle2 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -13,7 +14,7 @@ export default function RegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -24,11 +25,22 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    // Stubbing the registration process
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await api.post('/auth/register/', {
+        full_name: name,
+        email: email,
+        password: password,
+        role_name: 'Dispatcher'
+      });
       setIsSuccess(true);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err.response?.data);
+      const data = err.response?.data;
+      const msg = data ? Object.values(data).flat().join(' | ') : 'Failed to register. Email may already be in use.';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSuccess) {

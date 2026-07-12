@@ -33,7 +33,8 @@ api.interceptors.response.use(
         Cookies.remove('access_token');
         Cookies.remove('refresh_token');
         Cookies.remove('user_data');
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        const publicPaths = ['/login', '/register', '/forgot-password'];
+        if (typeof window !== 'undefined' && !publicPaths.includes(window.location.pathname)) {
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -52,7 +53,8 @@ api.interceptors.response.use(
         Cookies.remove('access_token');
         Cookies.remove('refresh_token');
         Cookies.remove('user_data');
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        const publicPaths = ['/login', '/register', '/forgot-password'];
+        if (typeof window !== 'undefined' && !publicPaths.includes(window.location.pathname)) {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
