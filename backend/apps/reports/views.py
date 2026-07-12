@@ -382,3 +382,275 @@ def export_csv(request):
         f'attachment; filename="transitops_report_{date.today().isoformat()}.csv"'
     )
     return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def export_pdf(request):
+    """
+    GET /api/v1/reports/export.pdf — Export vehicle analytics and KPIs as a beautiful PDF using Weasyprint.
+    """
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse("Weasyprint not available", status=500)
+
+    # Replicate or extract analytics calculation to get the latest data:
+    vehicles = list(Vehicle.objects.all().values(
+        "id", "registration_number", "name_model", "type",
+        "max_load_capacity_kg", "acquisition_cost", "status", "odometer_km"
+    ))
+
+    fuel_agg = {
+        row["vehicle_id"]: row
+        for row in FuelLog.objects.values("vehicle_id")
+        .annotate(total_fuel_cost=Sum("cost"), total_litres=Sum("litres"))
+    }
+    maint_agg = {
+        row["vehicle_id"]: row
+        for row in MaintenanceRecord.objects.values("vehicle_id")
+        .annotate(total_maint_cost=Sum("cost"))
+    }
+    trip_agg = {
+        row["vehicle_id"]: row
+        for row in Trip.objects.filter(status=Trip.COMPLETED)
+        .values("vehicle_id")
+        .annotate(total_revenue=Sum("revenue"), trip_count=Count("id"), total_distance=Sum("planned_distance_km"))
+    }
+
+    # Summary calculations
+    total_fuel_cost = Decimal("0")
+    total_maint_cost = Decimal("0")
+    total_revenue = Decimal("0")
+    total_acq = Decimal("0")
+
+    rows = []
+    for v in Vehicle.objects.all():
+        fuel = fuel_agg.get(v.id, {})
+        maint = maint_agg.get(v.id, {})
+        trip = trip_agg.get(v.id, {})
+        
+        fuel_cost = Decimal(str(fuel.get("total_fuel_cost") or 0))
+        maint_cost = Decimal(str(maint.get("total_maint_cost") or 0))
+        rev = Decimal(str(trip.get("total_revenue") or 0))
+        acq = Decimal(str(v.acquisition_cost or 1))
+        
+        total_fuel_cost += fuel_cost
+        total_maint_cost += maint_cost
+        total_revenue += rev
+        total_acq += acq
+        
+        op_cost = fuel_cost + maint_cost
+        roi = round((rev - op_cost) / acq * 100, 2) if acq > 0 else 0
+        litres = float(fuel.get("total_litres") or 0)
+        distance = float(trip.get("total_distance") or 0)
+        efficiency = round(distance / litres, 2) if litres > 0 else 0
+        
+        rows.append({
+            "registration_number": v.registration_number,
+            "name_model": v.name_model,
+            "type": v.type,
+            "status": v.status,
+            "fuel_efficiency": efficiency,
+            "total_fuel_cost": float(fuel_cost),
+            "total_maint_cost": float(maint_cost),
+            "total_op_cost": float(op_cost),
+            "revenue": float(rev),
+            "roi": roi,
+            "trip_count": trip.get("trip_count", 0),
+        })
+
+    # Summary numbers
+    total_op_cost = float(total_fuel_cost + total_maint_cost)
+    fleet_roi = round((float(total_revenue) - total_op_cost) / float(total_acq) * 100, 2) if total_acq > 0 else 0
+    non_retired = Vehicle.objects.exclude(status=Vehicle.RETIRED).count()
+    on_trip_count = Vehicle.objects.filter(status=Vehicle.ON_TRIP).count()
+    fleet_utilization = round(on_trip_count / non_retired * 100, 1) if non_retired > 0 else 0
+
+    # Build the HTML template
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>TransitOps Fleet Performance Report</title>
+        <style>
+            @page {{
+                size: A4 landscape;
+                margin: 15mm;
+                @bottom-right {{
+                    content: "Page " counter(page) " of " counter(pages);
+                    font-size: 9pt;
+                    color: #64748b;
+                }}
+                @bottom-left {{
+                    content: "TransitOps Smart Transport Operations Platform • Confidential & Proprietary";
+                    font-size: 9pt;
+                    color: #64748b;
+                }}
+            }}
+            body {{
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                color: #1e293b;
+                margin: 0;
+                padding: 0;
+                font-size: 10pt;
+                line-height: 1.5;
+            }}
+            h1 {{
+                font-size: 24pt;
+                color: #0f172a;
+                margin: 0 0 5px 0;
+                font-weight: 700;
+            }}
+            .subtitle {{
+                font-size: 11pt;
+                color: #64748b;
+                margin-bottom: 25px;
+            }}
+            .kpi-container {{
+                display: flex;
+                margin-bottom: 30px;
+                justify-content: space-between;
+                width: 100%;
+            }}
+            .kpi-card {{
+                flex: 1;
+                background-color: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 15px;
+                margin-right: 15px;
+                text-align: center;
+                box-sizing: border-box;
+            }}
+            .kpi-card:last-child {{
+                margin-right: 0;
+            }}
+            .kpi-title {{
+                font-size: 9pt;
+                text-transform: uppercase;
+                color: #64748b;
+                font-weight: 600;
+                margin-bottom: 5px;
+            }}
+            .kpi-value {{
+                font-size: 18pt;
+                font-weight: 700;
+                color: #1d4ed8;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 30px;
+            }}
+            th {{
+                background-color: #0f172a;
+                color: #ffffff;
+                text-align: left;
+                padding: 10px;
+                font-size: 9pt;
+                font-weight: 600;
+                text-transform: uppercase;
+            }}
+            td {{
+                padding: 10px;
+                border-bottom: 1px solid #e2e8f0;
+            }}
+            tr:nth-child(even) td {{
+                background-color: #f8fafc;
+            }}
+            .text-right {{
+                text-align: right;
+            }}
+            .badge {{
+                display: inline-block;
+                padding: 3px 8px;
+                font-size: 8pt;
+                font-weight: 600;
+                border-radius: 4px;
+            }}
+            .badge-available {{ background-color: #dcfce7; color: #15803d; }}
+            .badge-ontrip {{ background-color: #dbeafe; color: #1d4ed8; }}
+            .badge-inshop {{ background-color: #fef3c7; color: #b45309; }}
+            .badge-retired {{ background-color: #f1f5f9; color: #475569; }}
+        </style>
+    </head>
+    <body>
+        <h1>TransitOps Fleet Performance Report</h1>
+        <div class="subtitle">Generated on {date.today().strftime('%B %d, %Y')} • Detailed Vehicle Aggregations & ROI Metrics</div>
+        
+        <div class="kpi-container" style="display: table; table-layout: fixed; width: 100%;">
+            <div class="kpi-card" style="display: table-cell; width: 25%;">
+                <div class="kpi-title">Fleet Utilization</div>
+                <div class="kpi-value">{fleet_utilization}%</div>
+            </div>
+            <div class="kpi-card" style="display: table-cell; width: 25%;">
+                <div class="kpi-title">Total Revenue</div>
+                <div class="kpi-value">₹{float(total_revenue):,.2f}</div>
+            </div>
+            <div class="kpi-card" style="display: table-cell; width: 25%;">
+                <div class="kpi-title">Operational Cost</div>
+                <div class="kpi-value">₹{total_op_cost:,.2f}</div>
+            </div>
+            <div class="kpi-card" style="display: table-cell; width: 25%;">
+                <div class="kpi-title">Fleet ROI</div>
+                <div class="kpi-value">{fleet_roi}%</div>
+            </div>
+        </div>
+        <br/>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Reg No</th>
+                    <th>Name/Model</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th class="text-right">Trips</th>
+                    <th class="text-right">Fuel Eff. (km/L)</th>
+                    <th class="text-right">Fuel Cost</th>
+                    <th class="text-right">Maint. Cost</th>
+                    <th class="text-right">Total Op. Cost</th>
+                    <th class="text-right">Revenue</th>
+                    <th class="text-right">ROI (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for r in rows:
+        status_class = r["status"].lower().replace(" ", "")
+        html_content += f"""
+                <tr>
+                    <td><strong>{r["registration_number"]}</strong></td>
+                    <td>{r["name_model"]}</td>
+                    <td>{r["type"]}</td>
+                    <td><span class="badge badge-{status_class}">{r["status"]}</span></td>
+                    <td class="text-right">{r["trip_count"]}</td>
+                    <td class="text-right">{r["fuel_efficiency"] or "0.00"}</td>
+                    <td class="text-right">₹{r["total_fuel_cost"]:,.2f}</td>
+                    <td class="text-right">₹{r["total_maint_cost"]:,.2f}</td>
+                    <td class="text-right">₹{r["total_op_cost"]:,.2f}</td>
+                    <td class="text-right">₹{r["revenue"]:,.2f}</td>
+                    <td class="text-right">{r["roi"]}%</td>
+                </tr>
+        """
+        
+    html_content += """
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    
+    # Generate PDF from HTML using weasyprint
+    pdf_file = io.BytesIO()
+    HTML(string=html_content).write_pdf(target=pdf_file)
+    pdf_file.seek(0)
+    
+    response = HttpResponse(pdf_file.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="transitops_report_{date.today().isoformat()}.pdf"'
+    )
+    return response

@@ -20,7 +20,7 @@ class FuelLogSerializer(serializers.ModelSerializer):
         model = FuelLog
         fields = [
             "id", "vehicle", "vehicle_reg", "trip", "trip_code",
-            "date", "litres", "cost", "odometer_at_fill",
+            "date", "litres", "cost", "odometer_at_fill", "pump_name",
             "computed_mileage_kmpl", "is_anomaly_flagged", "created_at"
         ]
         read_only_fields = ["id", "computed_mileage_kmpl", "is_anomaly_flagged", "created_at"]

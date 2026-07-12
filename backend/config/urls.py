@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/v1/maintenance/", include("apps.maintenance.urls")),
     path("api/v1/fuel-logs/", include("apps.finance.urls.fuel_urls")),
     path("api/v1/expenses/", include("apps.finance.urls.expense_urls")),
+    path("api/v1/payments/", include("apps.finance.urls.payment_urls")),
     path("api/v1/reports/", include("apps.reports.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     # OpenAPI

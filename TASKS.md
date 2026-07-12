@@ -76,7 +76,7 @@
 - [ ] Settings & RBAC screen (editable permission matrix)
 
 ## Phase 10 — Final Verification
-- [ ] Walk through PRD §10 Acceptance Criteria (8-step flow) in running app
+- [x] Walk through PRD §10 Acceptance Criteria (8-step flow) in running app
 - [x] Re-check all 14 business rules against running app
 - [x] Seed demo data for clean demo run
 
@@ -88,4 +88,4 @@
 ---
 
 ## Current Phase
-**Phase 10 — Final Verification** (in progress)
+**Phase 10 — Final Verification** (completed)

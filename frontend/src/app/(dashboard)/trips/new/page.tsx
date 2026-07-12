@@ -53,6 +53,36 @@ export default function AddTripPage() {
     shortage_amount: '0'
   }]);
 
+  // Pump Details State (Multiple)
+  const [pumpDetails, setPumpDetails] = useState([{
+    id: undefined as number | undefined,
+    date: '',
+    litres: '',
+    cost: '',
+    odometer_at_fill: '',
+    pump_name: 'HPCL',
+  }]);
+
+  // Expense Details State (Multiple)
+  const [expenseDetails, setExpenseDetails] = useState([{
+    id: undefined as number | undefined,
+    date: '',
+    category: 'Misc',
+    amount: '',
+    notes: '',
+  }]);
+
+  // Payment Details State (Multiple)
+  const [paymentDetails, setPaymentDetails] = useState([{
+    id: undefined as number | undefined,
+    date: '',
+    payment_type: 'Advance',
+    amount: '',
+    payment_mode: 'Cash',
+    reference_no: '',
+    remarks: '',
+  }]);
+
   const fetchLookups = async () => {
     try {
       const [vRes, dRes] = await Promise.all([
@@ -68,6 +98,22 @@ export default function AddTripPage() {
 
   const calculateTotalFreight = () => {
     return lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.total_freight) || 0), 0);
+  };
+
+  const calculateTotalDiesel = () => {
+    return pumpDetails.reduce((sum, p) => sum + (parseFloat(p.cost) || 0), 0);
+  };
+
+  const calculateTotalExpenseDetails = () => {
+    return expenseDetails.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  };
+
+  const calculateTotalExpenseCombined = () => {
+    return calculateTotalDiesel() + calculateTotalExpenseDetails();
+  };
+
+  const calculateNetIncome = () => {
+    return calculateTotalFreight() - calculateTotalExpenseCombined();
   };
 
   const computeRunAndAverage = () => {
@@ -134,6 +180,60 @@ export default function AddTripPage() {
           } catch (e) {
             // ignore missing lr endpoint
           }
+
+          // load Pump details
+          try {
+            const pumpRes = await api.get(`/fuel-logs/?trip=${tripIdParam}`);
+            const pumps = pumpRes.data.results || pumpRes.data || [];
+            if (pumps.length) {
+              setPumpDetails(pumps.map((r: any) => ({
+                id: r.id,
+                date: r.date || '',
+                litres: String(r.litres || ''),
+                cost: String(r.cost || ''),
+                odometer_at_fill: String(r.odometer_at_fill || ''),
+                pump_name: r.pump_name || 'HPCL',
+              })));
+            }
+          } catch (e) {
+            console.warn('failed to load fuel logs for trip', e);
+          }
+
+          // load Expense details
+          try {
+            const expRes = await api.get(`/expenses/?trip=${tripIdParam}`);
+            const exps = expRes.data.results || expRes.data || [];
+            if (exps.length) {
+              setExpenseDetails(exps.map((r: any) => ({
+                id: r.id,
+                date: r.date || '',
+                category: r.category || 'Misc',
+                amount: String(r.amount || ''),
+                notes: r.notes || '',
+              })));
+            }
+          } catch (e) {
+            console.warn('failed to load expenses for trip', e);
+          }
+
+          // load Payment details
+          try {
+            const payRes = await api.get(`/payments/?trip=${tripIdParam}`);
+            const pays = payRes.data.results || payRes.data || [];
+            if (pays.length) {
+              setPaymentDetails(pays.map((r: any) => ({
+                id: r.id,
+                date: r.date || '',
+                payment_type: r.payment_type || 'Advance',
+                amount: String(r.amount || ''),
+                payment_mode: r.payment_mode || 'Cash',
+                reference_no: r.reference_no || '',
+                remarks: r.remarks || '',
+              })));
+            }
+          } catch (e) {
+            console.warn('failed to load payments for trip', e);
+          }
         } catch (err) {
           console.error('Failed to load trip for edit', err);
         }
@@ -184,6 +284,54 @@ export default function AddTripPage() {
       newLrs.splice(index, 1);
       setLrDetails(newLrs);
     }
+  };
+
+  const addPumpRow = () => {
+    setPumpDetails([...pumpDetails, { id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '', pump_name: 'HPCL' }]);
+  };
+  const removePumpRow = (index: number) => {
+    if (pumpDetails.length > 1) {
+      setPumpDetails(pumpDetails.filter((_, i) => i !== index));
+    } else {
+      setPumpDetails([{ id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '' }]);
+    }
+  };
+  const handlePumpChange = (index: number, field: string, val: string) => {
+    const next = [...pumpDetails];
+    next[index] = { ...next[index], [field]: val };
+    setPumpDetails(next);
+  };
+
+  const addExpenseRow = () => {
+    setExpenseDetails([...expenseDetails, { id: undefined, date: '', category: 'Misc', amount: '', notes: '' }]);
+  };
+  const removeExpenseRow = (index: number) => {
+    if (expenseDetails.length > 1) {
+      setExpenseDetails(expenseDetails.filter((_, i) => i !== index));
+    } else {
+      setExpenseDetails([{ id: undefined, date: '', category: 'Misc', amount: '', notes: '' }]);
+    }
+  };
+  const handleExpenseChange = (index: number, field: string, val: string) => {
+    const next = [...expenseDetails];
+    next[index] = { ...next[index], [field]: val };
+    setExpenseDetails(next);
+  };
+
+  const addPaymentRow = () => {
+    setPaymentDetails([...paymentDetails, { id: undefined, date: '', payment_type: 'Advance', amount: '', payment_mode: 'Cash', reference_no: '', remarks: '' }]);
+  };
+  const removePaymentRow = (index: number) => {
+    if (paymentDetails.length > 1) {
+      setPaymentDetails(paymentDetails.filter((_, i) => i !== index));
+    } else {
+      setPaymentDetails([{ id: undefined, date: '', payment_type: 'Advance', amount: '', payment_mode: 'Cash', reference_no: '', remarks: '' }]);
+    }
+  };
+  const handlePaymentChange = (index: number, field: string, val: string) => {
+    const next = [...paymentDetails];
+    next[index] = { ...next[index], [field]: val };
+    setPaymentDetails(next);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -251,6 +399,100 @@ export default function AddTripPage() {
         } catch (e) {
           console.warn('LR sync issue', e);
         }
+
+        // smarter Pump sync
+        try {
+          const existingPumpRes = await api.get(`/fuel-logs/?trip=${tripIdParam}`);
+          const existingPumps = existingPumpRes.data.results || existingPumpRes.data || [];
+          for (const p of existingPumps) {
+            const found = pumpDetails.find(d => d.id && String(d.id) === String(p.id));
+            if (!found) {
+              await api.delete(`/fuel-logs/${p.id}/`);
+            }
+          }
+          for (const p of pumpDetails) {
+            if (!p.date || !p.litres || !p.cost) continue;
+            const body = {
+              date: p.date,
+              litres: Number(p.litres),
+              cost: Number(p.cost),
+              odometer_at_fill: p.odometer_at_fill ? Number(p.odometer_at_fill) : 0,
+              pump_name: p.pump_name || 'HPCL',
+              vehicle: Number(formData.vehicle),
+              trip: Number(tripIdParam),
+            };
+            if (p.id) {
+              await api.patch(`/fuel-logs/${p.id}/`, body);
+            } else {
+              await api.post('/fuel-logs/', body);
+            }
+          }
+        } catch (e) {
+          console.warn('Pump sync issue', e);
+        }
+
+        // smarter Expense sync
+        try {
+          const existingExpRes = await api.get(`/expenses/?trip=${tripIdParam}`);
+          const existingExps = existingExpRes.data.results || existingExpRes.data || [];
+          for (const e of existingExps) {
+            const found = expenseDetails.find(d => d.id && String(d.id) === String(e.id));
+            if (!found) {
+              await api.delete(`/expenses/${e.id}/`);
+            }
+          }
+          for (const e of expenseDetails) {
+            if (!e.date || !e.amount) continue;
+            const body = {
+              date: e.date,
+              category: e.category,
+              amount: Number(e.amount),
+              notes: e.notes || '',
+              vehicle: Number(formData.vehicle),
+              trip: Number(tripIdParam),
+            };
+            if (e.id) {
+              await api.patch(`/expenses/${e.id}/`, body);
+            } else {
+              await api.post('/expenses/', body);
+            }
+          }
+        } catch (e) {
+          console.warn('Expense sync issue', e);
+        }
+
+        // smarter Payment sync
+        try {
+          const existingPayRes = await api.get(`/payments/?trip=${tripIdParam}`);
+          const existingPays = existingPayRes.data.results || existingPayRes.data || [];
+          for (const p of existingPays) {
+            const found = paymentDetails.find(d => d.id && String(d.id) === String(p.id));
+            if (!found) {
+              await api.delete(`/payments/${p.id}/`);
+            }
+          }
+          for (const p of paymentDetails) {
+            if (!p.date || !p.amount) continue;
+            const body = {
+              date: p.date,
+              payment_type: p.payment_type,
+              amount: Number(p.amount),
+              payment_mode: p.payment_mode,
+              reference_no: p.reference_no || '',
+              remarks: p.remarks || '',
+              vehicle: Number(formData.vehicle),
+              trip: Number(tripIdParam),
+            };
+            if (p.id) {
+              await api.patch(`/payments/${p.id}/`, body);
+            } else {
+              await api.post('/payments/', body);
+            }
+          }
+        } catch (e) {
+          console.warn('Payment sync issue', e);
+        }
+
         toast.success('Trip updated');
         router.push('/trips');
       } else {
@@ -276,7 +518,56 @@ export default function AddTripPage() {
             await api.post('/trips/lr-details/', lrPayload);
           }
         }
-        toast.success('Trip and LR Details saved successfully!');
+
+        // save Pump details
+        for (const p of pumpDetails) {
+          if (p.date && p.litres && p.cost) {
+            const body = {
+              date: p.date,
+              litres: Number(p.litres),
+              cost: Number(p.cost),
+              odometer_at_fill: p.odometer_at_fill ? Number(p.odometer_at_fill) : 0,
+              pump_name: p.pump_name || 'HPCL',
+              vehicle: Number(formData.vehicle),
+              trip: tripId,
+            };
+            await api.post('/fuel-logs/', body);
+          }
+        }
+
+        // save Expense details
+        for (const e of expenseDetails) {
+          if (e.date && e.amount) {
+            const body = {
+              date: e.date,
+              category: e.category,
+              amount: Number(e.amount),
+              notes: e.notes || '',
+              vehicle: Number(formData.vehicle),
+              trip: tripId,
+            };
+            await api.post('/expenses/', body);
+          }
+        }
+
+        // save Payment details
+        for (const p of paymentDetails) {
+          if (p.date && p.amount) {
+            const body = {
+              date: p.date,
+              payment_type: p.payment_type,
+              amount: Number(p.amount),
+              payment_mode: p.payment_mode,
+              reference_no: p.reference_no || '',
+              remarks: p.remarks || '',
+              vehicle: Number(formData.vehicle),
+              trip: tripId,
+            };
+            await api.post('/payments/', body);
+          }
+        }
+
+        toast.success('Trip and Details saved successfully!');
         router.push('/trips');
       }
     } catch (err: unknown) {
@@ -554,23 +845,23 @@ export default function AddTripPage() {
              
              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                <span className="text-slate-600 dark:text-slate-400 text-sm">Total Diesel Rs.</span>
-               <span className="font-medium">0.00</span>
+               <span className="font-medium">₹{calculateTotalDiesel().toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                <span className="text-slate-600 dark:text-slate-400 text-sm">Trip Expense Rs.</span>
-               <span className="font-medium">0.00</span>
+               <span className="font-medium">₹{calculateTotalExpenseDetails().toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                <span className="text-slate-600 dark:text-slate-400 text-sm font-bold">Total Freight Rs.</span>
                <span className="font-bold text-green-600 dark:text-green-400">₹{calculateTotalFreight().toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-               <span className="text-slate-600 dark:text-slate-400 text-sm">Total Expense Rs.</span>
-               <span className="font-medium text-red-600 dark:text-red-400">0.00</span>
+               <span className="text-slate-600 dark:text-slate-400 text-sm font-bold text-red-600">Total Expense Rs.</span>
+               <span className="font-bold text-red-600 dark:text-red-400">₹{calculateTotalExpenseCombined().toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-2 bg-blue-50 dark:bg-blue-900/20 px-2 rounded-lg">
                <span className="font-bold text-slate-900 dark:text-white">Net Income Rs.</span>
-               <span className="font-bold text-blue-600 dark:text-blue-400">₹{calculateTotalFreight().toLocaleString()}</span>
+               <span className="font-bold text-blue-600 dark:text-blue-400">₹{calculateNetIncome().toLocaleString()}</span>
              </div>
           </div>
         </div>
@@ -649,13 +940,156 @@ export default function AddTripPage() {
                 </div>
               )}
 
-              {activeTab !== 'lr_detail' && (
-                <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center h-64">
-                   <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                     <Wrench className="w-8 h-8 text-slate-400" />
-                   </div>
-                   <p>This tab is currently under construction for the demo.</p>
-                   <p className="text-sm mt-1">Full ERP functionality will load actual records here.</p>
+              {activeTab === 'pump' && (
+                <div className="animate-in fade-in duration-300 overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-3 w-10">#</th>
+                        <th className="px-3 py-3">Fueling Date</th>
+                        <th className="px-3 py-3">Pump Name</th>
+                        <th className="px-3 py-3">Litres</th>
+                        <th className="px-3 py-3">Total Cost (Rs.)</th>
+                        <th className="px-3 py-3">Odometer At Fill</th>
+                        <th className="px-3 py-3 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {pumpDetails.map((pump, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <td className="px-3 py-2 text-center text-slate-400">{idx + 1}</td>
+                          <td className="px-1 py-1"><input value={pump.date} onChange={e => handlePumpChange(idx, 'date', e.target.value)} type="date" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700 text-xs" /></td>
+                          <td className="px-1 py-1">
+                            <select value={pump.pump_name} onChange={e => handlePumpChange(idx, 'pump_name', e.target.value)} className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700">
+                              <option value="HPCL">HPCL</option>
+                              <option value="IOCL">IOCL</option>
+                              <option value="BPCL">BPCL</option>
+                              <option value="Reliance">Reliance</option>
+                              <option value="Nayara">Nayara</option>
+                              <option value="Shell">Shell</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </td>
+                          <td className="px-1 py-1"><input value={pump.litres} onChange={e => handlePumpChange(idx, 'litres', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 50" /></td>
+                          <td className="px-1 py-1"><input value={pump.cost} onChange={e => handlePumpChange(idx, 'cost', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 4500" /></td>
+                          <td className="px-1 py-1"><input value={pump.odometer_at_fill} onChange={e => handlePumpChange(idx, 'odometer_at_fill', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 74100" /></td>
+                          <td className="px-1 py-1 text-center">
+                            <button onClick={() => removePumpRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Records: {pumpDetails.length}</span>
+                    <button type="button" onClick={addPumpRow} className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 px-3 py-1.5 rounded transition-colors">
+                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'expense' && (
+                <div className="animate-in fade-in duration-300 overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-3 w-10">#</th>
+                        <th className="px-3 py-3">Expense Date</th>
+                        <th className="px-3 py-3">Category</th>
+                        <th className="px-3 py-3">Amount (Rs.)</th>
+                        <th className="px-3 py-3">Notes/Remarks</th>
+                        <th className="px-3 py-3 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {expenseDetails.map((exp, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <td className="px-3 py-2 text-center text-slate-400">{idx + 1}</td>
+                          <td className="px-1 py-1"><input value={exp.date} onChange={e => handleExpenseChange(idx, 'date', e.target.value)} type="date" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700 text-xs" /></td>
+                          <td className="px-1 py-1">
+                            <select value={exp.category} onChange={e => handleExpenseChange(idx, 'category', e.target.value)} className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700">
+                              <option value="Toll">Toll</option>
+                              <option value="Misc">Miscellaneous</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </td>
+                          <td className="px-1 py-1"><input value={exp.amount} onChange={e => handleExpenseChange(idx, 'amount', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="Amount" /></td>
+                          <td className="px-1 py-1"><input value={exp.notes} onChange={e => handleExpenseChange(idx, 'notes', e.target.value)} type="text" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="Remarks" /></td>
+                          <td className="px-1 py-1 text-center">
+                            <button onClick={() => removeExpenseRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Records: {expenseDetails.length}</span>
+                    <button type="button" onClick={addExpenseRow} className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 px-3 py-1.5 rounded transition-colors">
+                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'payment' && (
+                <div className="animate-in fade-in duration-300 overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-3 w-10">#</th>
+                        <th className="px-3 py-3">Payment Date</th>
+                        <th className="px-3 py-3">Payment Type</th>
+                        <th className="px-3 py-3">Amount (Rs.)</th>
+                        <th className="px-3 py-3">Mode</th>
+                        <th className="px-3 py-3">Reference No</th>
+                        <th className="px-3 py-3">Remarks</th>
+                        <th className="px-3 py-3 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {paymentDetails.map((pay, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <td className="px-3 py-2 text-center text-slate-400">{idx + 1}</td>
+                          <td className="px-1 py-1"><input value={pay.date} onChange={e => handlePaymentChange(idx, 'date', e.target.value)} type="date" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700 text-xs" /></td>
+                          <td className="px-1 py-1">
+                            <select value={pay.payment_type} onChange={e => handlePaymentChange(idx, 'payment_type', e.target.value)} className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700">
+                              <option value="Advance">Driver Advance</option>
+                              <option value="Balance">Balance Payment</option>
+                              <option value="Diesel Advance">Diesel Advance</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </td>
+                          <td className="px-1 py-1"><input value={pay.amount} onChange={e => handlePaymentChange(idx, 'amount', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="Amount" /></td>
+                          <td className="px-1 py-1">
+                            <select value={pay.payment_mode} onChange={e => handlePaymentChange(idx, 'payment_mode', e.target.value)} className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700">
+                              <option value="Cash">Cash</option>
+                              <option value="Bank Transfer">Bank Transfer</option>
+                              <option value="GPay/UPI">GPay/UPI</option>
+                              <option value="Cheque">Cheque</option>
+                            </select>
+                          </td>
+                          <td className="px-1 py-1"><input value={pay.reference_no} onChange={e => handlePaymentChange(idx, 'reference_no', e.target.value)} type="text" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="Ref No" /></td>
+                          <td className="px-1 py-1"><input value={pay.remarks} onChange={e => handlePaymentChange(idx, 'remarks', e.target.value)} type="text" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="Remarks" /></td>
+                          <td className="px-1 py-1 text-center">
+                            <button onClick={() => removePaymentRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Records: {paymentDetails.length}</span>
+                    <button type="button" onClick={addPaymentRow} className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 px-3 py-1.5 rounded transition-colors">
+                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

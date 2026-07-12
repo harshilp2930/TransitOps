@@ -1,5 +1,5 @@
 from django.contrib import admin
-from apps.finance.models import FuelLog, Expense
+from apps.finance.models import FuelLog, Expense, Payment
 
 
 @admin.register(FuelLog)
@@ -12,3 +12,9 @@ class FuelLogAdmin(admin.ModelAdmin):
 class ExpenseAdmin(admin.ModelAdmin):
     list_display = ["vehicle", "trip", "category", "amount", "date"]
     list_filter = ["category"]
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ["vehicle", "trip", "payment_type", "amount", "payment_mode", "date"]
+    list_filter = ["payment_type", "payment_mode"]
