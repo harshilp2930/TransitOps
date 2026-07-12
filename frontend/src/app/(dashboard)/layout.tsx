@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun } from 'lucide-react';
+import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
