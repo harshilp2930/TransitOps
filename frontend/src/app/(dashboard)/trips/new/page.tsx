@@ -35,10 +35,29 @@ export default function AddTripPage() {
     cargo_weight_kg: '0',
     revenue: '0',
     narration: '',
+    planned_eta: '',
+    expected_return_date: '',
+    load_type: '',
+    freight_type: '',
+    home_depot_id: '',
   });
 
   // LR Details State (Multiple)
-  const [lrDetails, setLrDetails] = useState([{
+  const [lrDetails, setLrDetails] = useState<{
+    id?: number;
+    lr_number: string;
+    lr_date: string;
+    consignor: string;
+    consignee: string;
+    from_city: string;
+    to_city: string;
+    goods_description: string;
+    loading_weight: string;
+    unloading_weight: string;
+    party_rate: string;
+    total_freight: string;
+    shortage_amount: string;
+  }[]>([{
     lr_number: '',
     lr_date: '',
     consignor: '',
@@ -181,6 +200,24 @@ export default function AddTripPage() {
     }
   };
 
+  const createDriver = async () => {
+    setDriverLoading(true);
+    try {
+      const res = await api.post('/drivers/', driverForm);
+      const d = res.data;
+      const newD = { id: d.id, name: d.name || driverForm.name };
+      setDrivers(prev => [newD, ...prev]);
+      setFormData(prev => ({ ...prev, driver: String(newD.id) }));
+      setShowDriverModal(false);
+      setDriverForm({ name: '', license_number: '', license_category: '', license_expiry_date: '', contact_number: '', safety_score: '100', status: 'Available' });
+      toast.success('Driver added');
+    } catch (err: unknown) {
+      const error = err as any;
+      toast.error(error.response?.data?.name?.[0] || 'Failed to add driver');
+    } finally {
+      setDriverLoading(false);
+    }
+  };
   const addLrRow = () => {
     setLrDetails([...lrDetails, {
       lr_number: '', lr_date: '', consignor: '', consignee: '', from_city: '', to_city: '', 
@@ -197,6 +234,12 @@ export default function AddTripPage() {
     }
   };
 
+  const handleLrChange = (index: number, field: string, value: string) => {
+    const newLrs = [...lrDetails];
+    newLrs[index] = { ...newLrs[index], [field]: value };
+    setLrDetails(newLrs);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -211,10 +254,14 @@ export default function AddTripPage() {
         arrival_date: formData.arrival_date || null,
         arrival_km: formData.arrival_km ? Number(formData.arrival_km) : null,
         planned_distance_km: formData.planned_distance_km ? Number(formData.planned_distance_km) : 0,
-        cargo_weight_kg: formData.cargo_weight_kg ? Number(formData.cargo_weight_kg) : 0,
+        cargo_weight_kg: Number(formData.cargo_weight_kg) || 0,
         revenue: Number(calculateTotalFreight()) || 0,
         narration: formData.narration || '',
         planned_eta: formData.planned_eta || null,
+        expected_return_date: formData.expected_return_date || null,
+        load_type: formData.load_type || '',
+        freight_type: formData.freight_type || '',
+        home_depot_id: formData.home_depot_id || '',
         trip_code: formData.trip_code || '',
       };
 
@@ -536,6 +583,14 @@ export default function AddTripPage() {
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Expected Return</label>
+                  <input value={formData.expected_return_date} onChange={e => setFormData({...formData, expected_return_date: e.target.value})} type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Planned ETA</label>
+                  <input value={formData.planned_eta} onChange={e => setFormData({...formData, planned_eta: e.target.value})} type="datetime-local" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Arrival Date</label>
                   <input value={formData.arrival_date} onChange={e => setFormData({...formData, arrival_date: e.target.value})} type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />

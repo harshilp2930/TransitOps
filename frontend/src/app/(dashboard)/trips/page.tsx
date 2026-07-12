@@ -33,7 +33,10 @@ interface BoardData {
   cancelled: Trip[];
 }
 
-
+interface VehicleOption {
+  id: number;
+  registration_number: string;
+}
 
 interface DriverOption {
   id: number;
