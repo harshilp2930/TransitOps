@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 export default function DriversPage() {
   const { user, loading } = useAuth();
@@ -51,7 +52,12 @@ export default function DriversPage() {
                   <Link href={`/drivers/${d.id}`} className="text-blue-600">{d.name}</Link>
                 </td>
                 <td className="px-4 py-3">{d.license_number}</td>
-                <td className="px-4 py-3">{d.status}</td>
+                <td className="px-4 py-3">
+                  {d.status}
+                  {d.license_expiry_date && (
+                    <div className="text-xs text-slate-500">Expires in {differenceInCalendarDays(parseISO(d.license_expiry_date), new Date())} days</div>
+                  )}
+                </td>
               </tr>
             ))}
             {drivers.length === 0 && (
