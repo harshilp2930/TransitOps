@@ -143,7 +143,7 @@ export default function LiveBoardPage() {
   };
 
   const renderTripCard = (trip: Trip, col: string) => (
-    <div key={trip.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+    <div key={trip.id} onClick={() => openTripModal(trip.id)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
       <div className="flex justify-between items-start mb-2">
         <EditableTripCode trip={trip} onUpdated={() => fetchBoard()} />
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">₹{parseFloat(trip.revenue).toLocaleString()}</span>
@@ -169,7 +169,7 @@ export default function LiveBoardPage() {
 
       {canDispatch && col === 'draft' && (
         <button 
-          onClick={() => handleAction(trip.id, 'dispatch')}
+          onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'dispatch'); }}
           disabled={actionLoading === trip.id}
           className="w-full py-1.5 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
         >
@@ -180,14 +180,14 @@ export default function LiveBoardPage() {
       {canDispatch && col === 'dispatched' && (
         <div className="flex gap-2">
           <button 
-            onClick={() => handleAction(trip.id, 'complete')}
+            onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'complete'); }}
             disabled={actionLoading === trip.id}
             className="flex-1 py-1.5 bg-green-50 dark:bg-green-600/20 text-green-600 dark:text-green-400 hover:bg-green-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
           >
             {actionLoading === trip.id ? '...' : <><CheckCircle className="w-3 h-3 mr-1" /> Complete</>}
           </button>
           <button 
-            onClick={() => handleAction(trip.id, 'cancel')}
+            onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'cancel'); }}
             disabled={actionLoading === trip.id}
             className="flex-1 py-1.5 bg-red-50 dark:bg-red-600/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
           >
@@ -197,6 +197,40 @@ export default function LiveBoardPage() {
       )}
     </div>
   );
+
+  // Trip modal state
+  const [openTripId, setOpenTripId] = useState<number | null>(null);
+  const [tripDetail, setTripDetail] = useState<any>(null);
+  const [tripSaving, setTripSaving] = useState(false);
+
+  const openTripModal = async (id: number) => {
+    setOpenTripId(id);
+    try {
+      const res = await api.get(`/trips/${id}/`);
+      setTripDetail(res.data);
+    } catch (err) {
+      alert('Failed to load trip details');
+      setOpenTripId(null);
+    }
+  };
+
+  const closeTripModal = () => {
+    setOpenTripId(null);
+    setTripDetail(null);
+  };
+
+  const saveTripDetail = async () => {
+    if (!openTripId || !tripDetail) return;
+    setTripSaving(true);
+    try {
+      await api.patch(`/trips/${openTripId}/`, tripDetail);
+      await fetchBoard();
+      closeTripModal();
+    } catch (err) {
+      alert((err as any)?.response?.data?.detail || 'Failed to save trip');
+    } finally { setTripSaving(false); }
+  };
+
 
   function EditableTripCode({ trip, onUpdated }: { trip: Trip; onUpdated?: () => void }) {
     const [editing, setEditing] = useState(false);
@@ -317,6 +351,45 @@ export default function LiveBoardPage() {
           </div>
         </div>
       </div>
+      {/* Trip Details Modal */}
+      {openTripId && tripDetail && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
+          <div className="absolute inset-0 bg-black/40" onClick={closeTripModal} />
+          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-6 w-full max-w-3xl shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Edit Trip — {tripDetail.trip_code}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Trip Code</label>
+                <input value={tripDetail.trip_code || ''} onChange={e => setTripDetail({...tripDetail, trip_code: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Source</label>
+                <input value={tripDetail.source || ''} onChange={e => setTripDetail({...tripDetail, source: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Destination</label>
+                <input value={tripDetail.destination || ''} onChange={e => setTripDetail({...tripDetail, destination: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Departure Km</label>
+                <input value={tripDetail.departure_km ?? ''} onChange={e => setTripDetail({...tripDetail, departure_km: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Arrival Km</label>
+                <input value={tripDetail.arrival_km ?? ''} onChange={e => setTripDetail({...tripDetail, arrival_km: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-500 mb-1">Narration</label>
+                <input value={tripDetail.narration || ''} onChange={e => setTripDetail({...tripDetail, narration: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={closeTripModal} className="px-3 py-2 bg-slate-200 rounded">Cancel</button>
+              <button onClick={saveTripDetail} disabled={tripSaving} className="px-3 py-2 bg-blue-600 text-white rounded">{tripSaving ? 'Saving...' : 'Save changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
