@@ -29,23 +29,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       const token = Cookies.get('access_token');
       const userData = Cookies.get('user_data');
-      if (token && userData) {
-        setUser(JSON.parse(userData));
-        if (pathname === '/login') {
-          router.push('/dashboard');
-        }
-      } else {
-        // Only redirect if trying to access a protected route (anything not /login)
-        if (pathname !== '/login') {
-          router.push('/login');
-        }
+      if (!token) {
+        if (pathname !== '/login') router.push('/login');
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        // Validate token with server and refresh server-side user info
+        const res = await api.get('/auth/me/');
+        const serverUser = res.data;
+        Cookies.set('user_data', JSON.stringify(serverUser), { expires: 7 });
+        setUser(serverUser);
+        if (pathname === '/login') router.push('/dashboard');
+      } catch (e) {
+        // api interceptor will attempt refresh; if still failing, clear and redirect
+        Cookies.remove('access_token');
+        Cookies.remove('refresh_token');
+        Cookies.remove('user_data');
+        if (pathname !== '/login') router.push('/login');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
-    initAuth();
+    void initAuth();
   }, [pathname, router]);
 
   const login = (access: string, refresh: string, userData: User) => {
