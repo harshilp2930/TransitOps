@@ -17,11 +17,12 @@ export default function SettingsPage() {
     const fetchRoles = async () => {
       try {
         const res = await api.get('/auth/roles/');
-        setRoles(res.data);
+        const data = res.data.results || res.data;
+        setRoles(data);
         
         // Extract all unique permissions from all roles to build the matrix rows
         const allPerms = new Set<string>();
-        res.data.forEach((role: any) => {
+        data.forEach((role: any) => {
           Object.keys(role.permission_matrix || {}).forEach(p => allPerms.add(p));
         });
         setPermissionsList(Array.from(allPerms).sort());
