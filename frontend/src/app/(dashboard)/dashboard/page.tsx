@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Truck, AlertTriangle, Route, IndianRupee, Activity, TrendingUp } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import Link from 'next/link';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -145,7 +146,7 @@ export default function DashboardPage() {
 
       {/* KPI Stats Row 1 - Operational */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group">
+        <Link href="/trips" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group hover:scale-[1.02] hover:shadow-md transition-all cursor-pointer">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <Route className="w-16 h-16 text-blue-500" />
           </div>
@@ -156,9 +157,9 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Active Trips</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.active_trips}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group">
+        <Link href="/vehicles?status=Available" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group hover:scale-[1.02] hover:shadow-md transition-all cursor-pointer">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <Truck className="w-16 h-16 text-green-500" />
           </div>
@@ -169,9 +170,9 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Available Vehicles</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.available_vehicles}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group">
+        <Link href="/maintenance" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group hover:scale-[1.02] hover:shadow-md transition-all cursor-pointer">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <AlertTriangle className="w-16 h-16 text-amber-500" />
           </div>
@@ -182,9 +183,9 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">In Maintenance</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.vehicles_in_maintenance}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group">
+        <Link href="/trips" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden group hover:scale-[1.02] hover:shadow-md transition-all cursor-pointer">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <TrendingUp className="w-16 h-16 text-purple-500" />
           </div>
@@ -195,7 +196,7 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Trips</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats?.pending_trips ?? 0}</p>
-        </div>
+        </Link>
       </div>
 
       {/* Analytics Row 2 - Financial & Efficiency */}

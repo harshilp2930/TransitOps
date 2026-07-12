@@ -48,6 +48,14 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
+    // Read status from URL query params if present
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const statusParam = params.get('status');
+      if (statusParam) {
+        setStatusFilter(statusParam);
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchVehicles();
   }, []);
