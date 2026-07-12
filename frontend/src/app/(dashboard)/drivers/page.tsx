@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Plus, Search, Filter, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { format, isPast, isBefore, addDays } from 'date-fns';
 
 type ApiError = {
@@ -43,6 +44,7 @@ export default function DriversPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager', 'Safety Officer']);
+  const router = useRouter();
 
   const fetchDrivers = async () => {
     try {
@@ -200,7 +202,11 @@ export default function DriversPage() {
                     const isWarning = isLicenseExpiringSoon(driver.license_expiry_date);
 
                     return (
-                      <tr key={driver.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <tr 
+                        key={driver.id} 
+                        onClick={() => router.push(`/drivers/${driver.id}/edit`)}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                      >
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{driver.name}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">

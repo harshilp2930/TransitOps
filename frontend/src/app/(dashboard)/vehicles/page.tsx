@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 type ApiError = {
   response?: {
@@ -34,6 +35,7 @@ export default function VehiclesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager']);
+  const router = useRouter();
 
 
   const fetchVehicles = async () => {
@@ -145,7 +147,11 @@ export default function VehiclesPage() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
                 {filteredVehicles.length > 0 ? (
                   filteredVehicles.map((vehicle) => (
-                    <tr key={vehicle.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <tr 
+                      key={vehicle.id} 
+                      onClick={() => router.push(`/vehicles/${vehicle.id}/edit`)}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{vehicle.registration_number}</td>
                       <td className="px-6 py-4">
                         {vehicle.name_model}

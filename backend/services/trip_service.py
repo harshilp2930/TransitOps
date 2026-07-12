@@ -190,8 +190,16 @@ def complete_trip(trip_id: int, final_odometer_km, fuel_consumed_l, user) -> "Tr
         trip.completed_at = timezone.now()
         trip.final_odometer_km = final_odometer_km
         trip.fuel_consumed_l = fuel_consumed_l
+        if not trip.arrival_km:
+            trip.arrival_km = final_odometer_km
+        if not trip.arrival_date:
+            trip.arrival_date = timezone.now().date()
+        if trip.arrival_km is not None and trip.departure_km is not None:
+            trip.run_km = trip.arrival_km - trip.departure_km
+
         trip.save(update_fields=[
-            "status", "completed_at", "final_odometer_km", "fuel_consumed_l", "updated_at"
+            "status", "completed_at", "final_odometer_km", "fuel_consumed_l", 
+            "arrival_km", "arrival_date", "run_km", "updated_at"
         ])
 
     return trip

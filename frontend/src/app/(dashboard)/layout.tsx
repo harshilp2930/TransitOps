@@ -2,15 +2,16 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun, Settings, Menu, X } from 'lucide-react';
+import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun, Settings, Menu, X, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout, loading, hasRole } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme();
   const mounted = typeof window !== 'undefined';
 
@@ -28,11 +29,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer', 'Financial Analyst'] },
-    { label: 'Live Board', href: '/trips', icon: Activity, roles: ['Dispatcher', 'Fleet Manager'] },
-    { label: 'Vehicles', href: '/vehicles', icon: Truck, roles: ['Fleet Manager', 'Dispatcher'] },
+    { label: 'Fleet', href: '/vehicles', icon: Truck, roles: ['Fleet Manager', 'Dispatcher'] },
     { label: 'Drivers', href: '/drivers', icon: Users, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
+    { label: 'Trips', href: '/trips', icon: Activity, roles: ['Dispatcher', 'Fleet Manager'] },
     { label: 'Maintenance', href: '/maintenance', icon: Wrench, roles: ['Fleet Manager'] },
-    { label: 'Finance', href: '/finance', icon: FileText, roles: ['Financial Analyst', 'Fleet Manager'] },
+    { label: 'Fuel & Expenses', href: '/finance', icon: FileText, roles: ['Financial Analyst', 'Fleet Manager'] },
+    { label: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['Financial Analyst', 'Fleet Manager'] },
     { label: 'Settings', href: '/settings', icon: Settings, roles: ['Fleet Manager'] },
   ];
 
@@ -60,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
           {navItems.filter(item => hasRole(item.roles)).map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/dashboard');
             return (
               <Link 
                 key={item.href} 

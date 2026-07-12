@@ -181,6 +181,13 @@ def analytics_view(request):
     )
     maint_map = {row["vehicle_id"]: row for row in maint_agg}
 
+    # Other Expenses per vehicle
+    exp_agg = (
+        Expense.objects.values("vehicle_id")
+        .annotate(total_exp_cost=Sum("amount"))
+    )
+    exp_map = {row["vehicle_id"]: row for row in exp_agg}
+
     # Trip revenue per vehicle
     trip_rev = (
         Trip.objects.filter(status=Trip.COMPLETED)
@@ -201,13 +208,15 @@ def analytics_view(request):
         fuel = fuel_map.get(vid, {})
         maint = maint_map.get(vid, {})
         trip = trip_map.get(vid, {})
+        exp = exp_map.get(vid, {})
 
         fuel_cost = Decimal(str(fuel.get("total_fuel_cost") or 0))
         maint_cost = Decimal(str(maint.get("total_maint_cost") or 0))
+        exp_cost = Decimal(str(exp.get("total_exp_cost") or 0))
         rev = Decimal(str(trip.get("total_revenue") or 0))
         acq = Decimal(str(v["acquisition_cost"] or 1))
 
-        operational_cost = fuel_cost + maint_cost
+        operational_cost = fuel_cost + maint_cost + exp_cost
         roi = float((rev - operational_cost) / acq) if acq > 0 else 0
 
         total_fuel_cost += fuel_cost
@@ -228,12 +237,16 @@ def analytics_view(request):
             "fuel_efficiency_kmpl": efficiency,
             "total_fuel_cost": float(fuel_cost),
             "total_maintenance_cost": float(maint_cost),
+            "total_expense_cost": float(exp_cost),
             "total_operational_cost": float(operational_cost),
             "total_revenue": float(rev),
             "roi_pct": round(roi * 100, 2),
             "total_trips": trip.get("trip_count", 0),
             "avg_mileage_kmpl": round(float(fuel.get("avg_mileage") or 0), 2),
         })
+
+    # Sort vehicle_analytics by total_operational_cost descending so UI shows active ones first
+    vehicle_analytics.sort(key=lambda x: x["total_operational_cost"], reverse=True)
 
     # Sort by operational cost for "Top Costliest Vehicles"
     top_costliest = sorted(
@@ -260,7 +273,7 @@ def analytics_view(request):
     )
     fleet_efficiency = round(total_dist_all / total_litres_all, 2) if total_litres_all > 0 else 0
 
-    total_op_cost = float(total_fuel_cost + total_maint_cost)
+    total_op_cost = sum(x["total_operational_cost"] for x in vehicle_analytics)
     total_acq = float(
         Vehicle.objects.aggregate(s=Sum("acquisition_cost"))["s"] or 1
     )
@@ -336,6 +349,11 @@ def export_csv(request):
         for row in MaintenanceRecord.objects.values("vehicle_id")
         .annotate(total_maint_cost=Sum("cost"))
     }
+    exp_agg = {
+        row["vehicle_id"]: row
+        for row in Expense.objects.values("vehicle_id")
+        .annotate(total_exp_cost=Sum("amount"))
+    }
     trip_agg = {
         row["vehicle_id"]: row
         for row in Trip.objects.filter(status=Trip.COMPLETED)
@@ -347,12 +365,14 @@ def export_csv(request):
     for v in Vehicle.objects.all():
         fuel = fuel_agg.get(v.id, {})
         maint = maint_agg.get(v.id, {})
+        exp = exp_agg.get(v.id, {})
         trip = trip_agg.get(v.id, {})
         fuel_cost = float(fuel.get("total_fuel_cost") or 0)
         maint_cost = float(maint.get("total_maint_cost") or 0)
+        exp_cost = float(exp.get("total_exp_cost") or 0)
         rev = float(trip.get("total_revenue") or 0)
         acq = float(v.acquisition_cost or 1)
-        op_cost = fuel_cost + maint_cost
+        op_cost = fuel_cost + maint_cost + exp_cost
         roi = round((rev - op_cost) / acq * 100, 2) if acq > 0 else 0
         litres = float(fuel.get("total_litres") or 0)
         rows.append({
@@ -365,12 +385,15 @@ def export_csv(request):
             "Acquisition Cost": float(v.acquisition_cost),
             "Total Fuel Cost": fuel_cost,
             "Total Maintenance Cost": maint_cost,
+            "Total Other Expenses": exp_cost,
             "Total Operational Cost": op_cost,
             "Total Revenue": rev,
             "ROI (%)": roi,
             "Total Trips": trip.get("trip_count", 0),
             "Total Litres": litres,
         })
+        
+    rows.sort(key=lambda x: x["Total Operational Cost"], reverse=True)
 
     df = pd.DataFrame(rows)
     output = io.StringIO()
@@ -390,10 +413,7 @@ def export_pdf(request):
     """
     GET /api/v1/reports/export.pdf — Export vehicle analytics and KPIs as a beautiful PDF using Weasyprint.
     """
-    try:
-        from weasyprint import HTML
-    except ImportError:
-        return HttpResponse("Weasyprint not available", status=500)
+    # Imports for PDF generation are handled at the bottom with fallback
 
     # Replicate or extract analytics calculation to get the latest data:
     vehicles = list(Vehicle.objects.all().values(
@@ -410,6 +430,11 @@ def export_pdf(request):
         row["vehicle_id"]: row
         for row in MaintenanceRecord.objects.values("vehicle_id")
         .annotate(total_maint_cost=Sum("cost"))
+    }
+    exp_agg = {
+        row["vehicle_id"]: row
+        for row in Expense.objects.values("vehicle_id")
+        .annotate(total_exp_cost=Sum("amount"))
     }
     trip_agg = {
         row["vehicle_id"]: row
@@ -428,10 +453,12 @@ def export_pdf(request):
     for v in Vehicle.objects.all():
         fuel = fuel_agg.get(v.id, {})
         maint = maint_agg.get(v.id, {})
+        exp = exp_agg.get(v.id, {})
         trip = trip_agg.get(v.id, {})
         
         fuel_cost = Decimal(str(fuel.get("total_fuel_cost") or 0))
         maint_cost = Decimal(str(maint.get("total_maint_cost") or 0))
+        exp_cost = Decimal(str(exp.get("total_exp_cost") or 0))
         rev = Decimal(str(trip.get("total_revenue") or 0))
         acq = Decimal(str(v.acquisition_cost or 1))
         
@@ -440,7 +467,7 @@ def export_pdf(request):
         total_revenue += rev
         total_acq += acq
         
-        op_cost = fuel_cost + maint_cost
+        op_cost = fuel_cost + maint_cost + exp_cost
         roi = round((rev - op_cost) / acq * 100, 2) if acq > 0 else 0
         litres = float(fuel.get("total_litres") or 0)
         distance = float(trip.get("total_distance") or 0)
@@ -454,14 +481,17 @@ def export_pdf(request):
             "fuel_efficiency": efficiency,
             "total_fuel_cost": float(fuel_cost),
             "total_maint_cost": float(maint_cost),
+            "total_exp_cost": float(exp_cost),
             "total_op_cost": float(op_cost),
             "revenue": float(rev),
             "roi": roi,
             "trip_count": trip.get("trip_count", 0),
         })
+        
+    rows.sort(key=lambda x: x["total_op_cost"], reverse=True)
 
     # Summary numbers
-    total_op_cost = float(total_fuel_cost + total_maint_cost)
+    total_op_cost = sum(x["total_op_cost"] for x in rows)
     fleet_roi = round((float(total_revenue) - total_op_cost) / float(total_acq) * 100, 2) if total_acq > 0 else 0
     non_retired = Vehicle.objects.exclude(status=Vehicle.RETIRED).count()
     on_trip_count = Vehicle.objects.filter(status=Vehicle.ON_TRIP).count()
@@ -611,6 +641,7 @@ def export_pdf(request):
                     <th class="text-right">Fuel Eff. (km/L)</th>
                     <th class="text-right">Fuel Cost</th>
                     <th class="text-right">Maint. Cost</th>
+                    <th class="text-right">Other Exp.</th>
                     <th class="text-right">Total Op. Cost</th>
                     <th class="text-right">Revenue</th>
                     <th class="text-right">ROI (%)</th>
@@ -631,6 +662,7 @@ def export_pdf(request):
                     <td class="text-right">{r["fuel_efficiency"] or "0.00"}</td>
                     <td class="text-right">₹{r["total_fuel_cost"]:,.2f}</td>
                     <td class="text-right">₹{r["total_maint_cost"]:,.2f}</td>
+                    <td class="text-right">₹{r["total_exp_cost"]:,.2f}</td>
                     <td class="text-right">₹{r["total_op_cost"]:,.2f}</td>
                     <td class="text-right">₹{r["revenue"]:,.2f}</td>
                     <td class="text-right">{r["roi"]}%</td>
@@ -645,11 +677,23 @@ def export_pdf(request):
     """
     
     # Generate PDF from HTML using weasyprint
-    pdf_file = io.BytesIO()
-    HTML(string=html_content).write_pdf(target=pdf_file)
-    pdf_file.seek(0)
+    try:
+        html = HTML(string=html_content)
+        pdf_file = html.write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+    except Exception as e:
+        # Fallback for Windows where GTK3 dependencies might be missing
+        try:
+            from xhtml2pdf import pisa
+            import io
+            result = io.BytesIO()
+            pisa_status = pisa.CreatePDF(html_content, dest=result)
+            if pisa_status.err:
+                return HttpResponse("PDF generation failed with xhtml2pdf", status=500)
+            response = HttpResponse(result.getvalue(), content_type="application/pdf")
+        except ImportError:
+            return HttpResponse(f"Weasyprint not available: {e}", status=500)
     
-    response = HttpResponse(pdf_file.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = (
         f'attachment; filename="transitops_report_{date.today().isoformat()}.pdf"'
     )
