@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun, Settings } from 'lucide-react';
+import { Truck, Users, Activity, LogOut, LayoutDashboard, Wrench, FileText, Moon, Sun, Settings, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout, loading, hasRole } = useAuth();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -36,11 +38,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex text-slate-800 dark:text-slate-300 font-sans transition-colors duration-200">
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 z-20 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col fixed inset-y-0 z-10 transition-colors duration-200">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
-          <Truck className="w-6 h-6 text-blue-600 dark:text-blue-500 mr-2" />
-          <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">TransitOps</span>
+      <aside className={`w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col fixed inset-y-0 z-30 transition-transform duration-300 ease-in-out md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center">
+            <Truck className="w-6 h-6 text-blue-600 dark:text-blue-500 mr-2" />
+            <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">TransitOps</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-500 hover:text-slate-900 dark:hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
         </div>
         
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
@@ -50,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link 
                 key={item.href} 
                 href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center px-3 py-2.5 rounded-lg transition-colors ${
                   isActive 
                     ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 font-medium' 
@@ -100,11 +116,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 flex flex-col min-h-screen">
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 sticky top-0 z-10 transition-colors duration-200">
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white capitalize">
-            {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
-          </h1>
+      <main className="flex-1 md:ml-64 flex flex-col min-h-screen w-full overflow-hidden">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 transition-colors duration-200">
+          <div className="flex items-center">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden mr-3 p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white">
+              <Menu className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-white capitalize">
+              {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
+            </h1>
+          </div>
           <div className="flex items-center space-x-4">
             <span className="px-3 py-1 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-full text-xs font-medium flex items-center">
               <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
