@@ -180,6 +180,7 @@ export default function AddTripPage() {
           </div>
         </div>
         <div className="flex space-x-3">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium">Print</button>
           <Link href="/trips" className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium">
             Cancel
           </Link>
@@ -219,7 +220,8 @@ export default function AddTripPage() {
                   if (!formData.vehicle) return;
                   try {
                     const v = await api.get(`/vehicles/${formData.vehicle}/`);
-                    console.log('vehicle', v.data);
+                    const od = v.data.odometer_km ?? v.data.odometer || 0;
+                    setFormData(prev => ({...prev, departure_km: od?.toString() ?? ''}));
                   } catch (e) { console.error(e); }
                 }} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border rounded">Get</button>
               </div>
