@@ -120,6 +120,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-label="Email address"
               className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="name@transitops.com"
             />
@@ -134,6 +135,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              aria-label="Password"
               className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="••••••••"
             />
@@ -142,6 +144,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
+            aria-disabled={isLoading}
+            aria-label="Sign in"
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center mt-2"
           >
             {isLoading ? (
