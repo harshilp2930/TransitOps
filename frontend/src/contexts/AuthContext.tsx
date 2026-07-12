@@ -57,6 +57,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     void initAuth();
+    // Silent refresh interval: attempt refresh every 25 minutes to keep session alive
+    const interval = setInterval(async () => {
+      const refresh = Cookies.get('refresh_token');
+      if (!refresh) return;
+      try {
+        const resp = await api.post('/auth/refresh/', { refresh });
+        const nextAccess = resp.data.access;
+        Cookies.set('access_token', nextAccess, { expires: 1/24 });
+      } catch (e) {
+        // On refresh failure, clear auth and redirect to login
+        Cookies.remove('access_token');
+        Cookies.remove('refresh_token');
+        Cookies.remove('user_data');
+        setUser(null);
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }, 25 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, [pathname, router]);
 
   const login = (access: string, refresh: string, userData: User) => {
