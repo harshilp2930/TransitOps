@@ -319,6 +319,7 @@ export default function LiveBoardPage() {
           </button>
         )}
       </div>
+      </div>
 
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
         {(() => {
@@ -399,8 +400,6 @@ export default function LiveBoardPage() {
             </>
           );
         })()}
-      </div>
-
       </div>
       {/* Trip Details Modal */}
       {openTripId && tripDetail && (
