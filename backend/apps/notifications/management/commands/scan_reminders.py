@@ -32,7 +32,7 @@ class Command(BaseCommand):
                 message=msg,
             )
 
-        # 2) Vehicle document expiry
+        # 2) Vehicle document expiry (VehicleDocument model)
         expiring_docs = VehicleDocument.objects.filter(expiry_date__lte=soon)
         for doc in expiring_docs:
             msg = f"{doc.get_doc_type_display()} for {doc.vehicle.registration_number} expires on {doc.expiry_date}."
@@ -42,6 +42,39 @@ class Command(BaseCommand):
                 reference_id=str(doc.id),
                 message=msg,
             )
+
+        # 2b) Direct Vehicle document expiry fields
+        vehicles = Vehicle.objects.all()
+        for v in vehicles:
+            if v.insurance_expiry and v.insurance_expiry <= soon:
+                Notification.objects.create(
+                    type=Notification.DOCUMENT_EXPIRY,
+                    reference_entity="Vehicle",
+                    reference_id=str(v.id),
+                    message=f"Insurance for {v.registration_number} expires on {v.insurance_expiry}.",
+                )
+            if v.fitness_expiry and v.fitness_expiry <= soon:
+                Notification.objects.create(
+                    type=Notification.DOCUMENT_EXPIRY,
+                    reference_entity="Vehicle",
+                    reference_id=str(v.id),
+                    message=f"Fitness for {v.registration_number} expires on {v.fitness_expiry}.",
+                )
+            if v.permit_expiry and v.permit_expiry <= soon:
+                Notification.objects.create(
+                    type=Notification.DOCUMENT_EXPIRY,
+                    reference_entity="Vehicle",
+                    reference_id=str(v.id),
+                    message=f"Permit for {v.registration_number} expires on {v.permit_expiry}.",
+                )
+            # BR14: Tyre Wear Threshold
+            if v.needs_tyre_change:
+                Notification.objects.create(
+                    type=Notification.MILEAGE_DEVIATION,
+                    reference_entity="Vehicle",
+                    reference_id=str(v.id),
+                    message=f"Vehicle {v.registration_number} needs tyre replacement (crossed {v.tyre_replacement_threshold} km limit).",
+                )
 
         # 3) Mileage deviation: for each vehicle, compare last fill mileage to rolling avg of last 5
         vehicles = Vehicle.objects.all()
@@ -80,6 +113,21 @@ class Command(BaseCommand):
                 type=Notification.DEPOT_OVERDUE,
                 reference_entity="Vehicle",
                 reference_id=str(v.id),
+                message=msg,
+            )
+
+        # 4b) Overdue Trips (BR12 enhancement)
+        from apps.trips.models import Trip
+        overdue_trips = Trip.objects.filter(
+            status=Trip.DISPATCHED,
+            expected_return_date__lt=now
+        )
+        for trip in overdue_trips:
+            msg = f"Trip {trip.trip_code} is overdue. Expected return: {trip.expected_return_date}."
+            Notification.objects.create(
+                type=Notification.DEPOT_OVERDUE,
+                reference_entity="Trip",
+                reference_id=str(trip.id),
                 message=msg,
             )
 

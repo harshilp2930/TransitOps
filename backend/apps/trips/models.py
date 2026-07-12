@@ -111,6 +111,7 @@ class Trip(models.Model):
 
     # Depot tracking (Enhancement)
     home_depot_id = models.CharField(max_length=50, blank=True, default="")
+    expected_return_date = models.DateField(null=True, blank=True)
 
     # Audit
     created_by = models.ForeignKey(
