@@ -176,7 +176,31 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f"  Trip: {trip3.trip_code} (Draft)")
 
-        # Create maintenance record
+        # Create another completed trip
+        prima = vehicles.get("WB02NP9012")
+        manoj = drivers.get("BR01202277")
+        if prima and manoj:
+            trip4, created = Trip.objects.get_or_create(
+                source="Kolkata, WB",
+                destination="Patna, BR",
+                defaults={
+                    "vehicle": prima, "driver": manoj,
+                    "cargo_weight_kg": 24000, "planned_distance_km": 580,
+                    "revenue": 75000, "status": Trip.COMPLETED,
+                    "dispatched_at": timezone.now() - timedelta(days=5),
+                    "completed_at": timezone.now() - timedelta(days=3),
+                    "final_odometer_km": 200580, "fuel_consumed_l": 150,
+                    "created_by": disp_user,
+                }
+            )
+            if created:
+                FuelLog.objects.get_or_create(
+                    vehicle=prima, trip=trip4,
+                    defaults={"date": date.today() - timedelta(days=3), "litres": 150, "cost": 14000, "odometer_at_fill": 200580}
+                )
+                self.stdout.write(f"  Trip: {trip4.trip_code} (Completed)")
+
+        # Create maintenance records
         ace_gold = vehicles.get("UP14EF4893")
         if ace_gold:
             mr, created = MaintenanceRecord.objects.get_or_create(
@@ -188,6 +212,18 @@ class Command(BaseCommand):
             )
             if created:
                 self.stdout.write(f"  Maintenance: {ace_gold.registration_number} — Oil Change")
+        
+        bolero = vehicles.get("DL01GH4893")
+        if bolero:
+            mr, created = MaintenanceRecord.objects.get_or_create(
+                vehicle=bolero, service_type="Engine Repair",
+                defaults={
+                    "cost": 25000, "date": date.today() - timedelta(days=5),
+                    "status": MaintenanceRecord.COMPLETED
+                }
+            )
+            if created:
+                self.stdout.write(f"  Maintenance: {bolero.registration_number} — Engine Repair (Completed)")
 
         # Expenses
         if tata_lpt:
