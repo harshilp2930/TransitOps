@@ -45,6 +45,8 @@ class Vehicle(models.Model):
     acquisition_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=AVAILABLE)
     region = models.CharField(max_length=100, blank=True, default="")
+    owner_name = models.CharField(max_length=200, blank=True, default="")
+    account_reference = models.CharField(max_length=100, blank=True, default="")
     last_depot_return = models.DateTimeField(null=True, blank=True)  # BR12
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

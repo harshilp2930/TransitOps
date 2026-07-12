@@ -50,6 +50,7 @@ class Trip(models.Model):
     trip_code = models.CharField(
         max_length=20, unique=True, default=generate_trip_code, editable=False
     )
+    trip_date = models.DateField(null=True, blank=True)
     source = models.CharField(max_length=200)
     destination = models.CharField(max_length=200)
 
@@ -70,6 +71,9 @@ class Trip(models.Model):
 
     cargo_weight_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     planned_distance_km = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    arrival_date = models.DateField(null=True, blank=True)
+    arrival_km = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    narration = models.TextField(blank=True, default="")
     revenue = models.DecimalField(
         max_digits=14, decimal_places=2, default=0,
         help_text="Trip revenue / fee — used for ROI calculation"
@@ -116,3 +120,27 @@ class Trip(models.Model):
 
     def __str__(self):
         return f"{self.trip_code}: {self.source} → {self.destination} [{self.status}]"
+
+
+class TripLRDetail(models.Model):
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="lr_details")
+    lr_number = models.CharField(max_length=100)
+    lr_date = models.DateField(null=True, blank=True)
+    consignor = models.CharField(max_length=200)
+    consignee = models.CharField(max_length=200)
+    from_city = models.CharField(max_length=100)
+    to_city = models.CharField(max_length=100)
+    goods_description = models.CharField(max_length=200, blank=True, default="")
+    loading_weight = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unloading_weight = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    party_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_freight = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    shortage_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "trip_lr_details"
+
+    def __str__(self):
+        return f"LR {self.lr_number} for {self.trip.trip_code}"

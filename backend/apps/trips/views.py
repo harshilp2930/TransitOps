@@ -1,17 +1,30 @@
 """Trip views — all state transitions delegate to service layer."""
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from apps.trips.models import Trip
+from apps.trips.models import Trip, TripLRDetail
 from apps.trips.serializers import (
-    TripSerializer, TripCreateSerializer, TripListSerializer, TripCompleteSerializer
+    TripSerializer, TripCreateSerializer, TripListSerializer, TripCompleteSerializer, TripLRDetailSerializer
 )
 from apps.accounts.permissions import IsDispatcherOrReadOnly
 from services.trip_service import dispatch_trip, complete_trip, cancel_trip, TripServiceError
+
+
+class TripLRDetailViewSet(viewsets.ModelViewSet):
+    queryset = TripLRDetail.objects.all()
+    serializer_class = TripLRDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        trip_id = self.request.query_params.get("trip_id")
+        if trip_id:
+            qs = qs.filter(trip_id=trip_id)
+        return qs
 
 
 class TripFilter(django_filters.FilterSet):

@@ -2,30 +2,35 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Truck, Wrench, Fuel, FileText, AlertTriangle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, AlertTriangle, Truck } from 'lucide-react';
 
-export default function VehicleDetailPage() {
-  const params = useParams();
+export default function VehicleDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const id = params.id as string;
-  const [vehicle, setVehicle] = useState<any>(null);
+  const [vehicle, setVehicle] = useState<{
+    id: number;
+    registration_number: string;
+    status: string;
+    max_load_capacity_kg: string;
+    [key: string]: string | number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
     const fetchVehicle = async () => {
       try {
-        const res = await api.get(`/vehicles/${id}/`);
+        const res = await api.get(`/vehicles/${params.id}/`);
         setVehicle(res.data);
-      } catch (err) {
-        console.error(err);
+      } catch (err: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const error = err as any;
+        console.error(error.response?.data?.detail || 'Failed to load vehicle details');
       } finally {
         setLoading(false);
       }
     };
     fetchVehicle();
-  }, [id]);
+  }, [params.id]);
 
   if (loading) {
     return (

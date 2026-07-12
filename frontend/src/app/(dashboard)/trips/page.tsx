@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Play, CheckCircle, XCircle, Clock, Truck, User as UserIcon, Plus } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ApiError = {
@@ -32,11 +32,15 @@ interface BoardData {
   cancelled: Trip[];
 }
 
+<<<<<<< HEAD
 interface VehicleOption {
   id: number;
   registration_number: string;
   name_model: string;
 }
+=======
+
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
 
 interface DriverOption {
   id: number;
@@ -49,6 +53,10 @@ export default function LiveBoardPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
+=======
+  
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
   const { hasRole } = useAuth();
   const canDispatch = hasRole(['Dispatcher']);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -68,8 +76,13 @@ export default function LiveBoardPage() {
 
   const fetchBoard = async () => {
     try {
+<<<<<<< HEAD
       const res = await api.get('/trips/board/');
       setBoard(res.data);
+=======
+      const boardRes = await api.get('/trips/board/');
+      setBoard(boardRes.data);
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     } catch (err) {
       console.error(err);
     } finally {
@@ -77,6 +90,7 @@ export default function LiveBoardPage() {
     }
   };
 
+<<<<<<< HEAD
   const fetchPools = async () => {
     try {
       const [vehiclesRes, driversRes] = await Promise.all([
@@ -95,6 +109,14 @@ export default function LiveBoardPage() {
     void fetchBoard();
     void fetchPools();
     const interval = setInterval(fetchBoard, 15000); // refresh every 15s
+=======
+  useEffect(() => {
+    // eslint-disable-next-line
+    fetchData();
+    const interval = setInterval(() => {
+      api.get('/trips/board/').then(res => setBoard(res.data)).catch(console.error);
+    }, 15000);
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     return () => clearInterval(interval);
   }, []);
 
@@ -120,10 +142,18 @@ export default function LiveBoardPage() {
         };
       }
       await api.post(`/trips/${id}/${action}/`, payload);
+<<<<<<< HEAD
       await Promise.all([fetchBoard(), fetchPools()]);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       alert(apiErr.response?.data?.detail || `Failed to ${action} trip`);
+=======
+      await fetchData();
+    } catch (err: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error = err as any;
+      alert(error.response?.data?.detail || error.response?.data?.error || `Failed to ${action} trip`);
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
     } finally {
       setActionLoading(null);
     }
@@ -234,6 +264,7 @@ export default function LiveBoardPage() {
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kanban view of all trip lifecycles (auto-refreshes)</p>
         </div>
         {canDispatch && (
+<<<<<<< HEAD
           <button
             onClick={() => setShowCreate((prev) => !prev)}
             className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
@@ -288,6 +319,17 @@ export default function LiveBoardPage() {
           </div>
         </form>
       )}
+=======
+          <button 
+            onClick={() => window.location.href = '/trips/new'}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Trip Entry
+          </button>
+        )}
+      </div>
+>>>>>>> 653cad1 (Add dense ERP forms for vehicles and trips and fix lint errors)
 
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
         {/* Draft Column */}
@@ -345,7 +387,6 @@ export default function LiveBoardPage() {
             {board.cancelled.length === 0 && <p className="text-center text-sm text-red-500/50 mt-4">No cancelled trips</p>}
           </div>
         </div>
-      </div>
     </div>
   );
 }
