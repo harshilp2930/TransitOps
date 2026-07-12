@@ -73,6 +73,10 @@ class Trip(models.Model):
     planned_distance_km = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     arrival_date = models.DateField(null=True, blank=True)
     arrival_km = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    # Departure odometer (Dept. Km) and derived fields
+    departure_km = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    run_km = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    average_kmpl = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     narration = models.TextField(blank=True, default="")
     revenue = models.DecimalField(
         max_digits=14, decimal_places=2, default=0,
