@@ -17,12 +17,16 @@ export default function AddTripPage() {
   // Core Trip Fields
   const [formData, setFormData] = useState({
     trip_date: '',
+    trip_code: '',
     vehicle: '',
     driver: '',
     source: '',
     destination: '',
     arrival_date: '',
     arrival_km: '',
+    departure_km: '',
+    run_km: '',
+    average_kmpl: '',
     planned_distance_km: '0',
     cargo_weight_kg: '0',
     revenue: '0',
@@ -67,6 +71,14 @@ export default function AddTripPage() {
 
   const calculateTotalFreight = () => {
     return lrDetails.reduce((sum, lr) => sum + (parseFloat(lr.total_freight) || 0), 0);
+  };
+
+  const computeRunAndAverage = () => {
+    const dep = parseFloat(formData.departure_km as string) || 0;
+    const arr = parseFloat(formData.arrival_km as string) || 0;
+    const run = (arr && dep) ? (arr - dep) : 0;
+    const avg = 0; // average depends on fuel consumed at completion; left blank
+    return { run, avg };
   };
 
   const handleLrChange = (index: number, field: string, value: string) => {
@@ -186,12 +198,43 @@ export default function AddTripPage() {
         {/* Left/Top Area: Core Trip Details */}
         <div className="lg:col-span-3 space-y-6">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-3">
+                <div>
+                  <label className="block text-xs text-slate-500">Trip No.</label>
+                  <input value={formData.trip_code} readOnly type="text" className="px-2 py-1 border rounded w-28 bg-slate-50 dark:bg-slate-900" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500">Lr No.(O)</label>
+                  <div className="px-2 py-1 border rounded w-20 bg-white text-center">{lrDetails.length}</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-slate-500 mr-2">Truck</label>
+                <select value={formData.vehicle} onChange={e => setFormData({...formData, vehicle: e.target.value})} className="px-2 py-1 border rounded bg-slate-50 dark:bg-slate-950">
+                  <option value="">Select</option>
+                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
+                </select>
+                <button type="button" onClick={async () => {
+                  if (!formData.vehicle) return;
+                  try {
+                    const v = await api.get(`/vehicles/${formData.vehicle}/`);
+                    console.log('vehicle', v.data);
+                  } catch (e) { console.error(e); }
+                }} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border rounded">Get</button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Trip Date</label>
                   <input value={formData.trip_date} onChange={e => setFormData({...formData, trip_date: e.target.value})} type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Dept. Km</label>
+                  <input value={formData.departure_km} onChange={e => setFormData({...formData, departure_km: e.target.value})} type="number" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vehicle</label>
@@ -232,6 +275,10 @@ export default function AddTripPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Arrival Km</label>
                   <input value={formData.arrival_km} onChange={e => setFormData({...formData, arrival_km: e.target.value})} type="number" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Run</label>
+                  <input readOnly value={(() => { const r = computeRunAndAverage().run; return r ? r.toFixed(2) : ''; })()} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg" />
                 </div>
               </div>
             </div>
