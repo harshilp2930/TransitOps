@@ -103,15 +103,43 @@ export default function AddTripPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Create Trip
-      const payload = { ...formData, revenue: calculateTotalFreight() };
+      // 1. Create Trip — sanitize types: send null for empty, numbers for numeric fields
+      const payload = {
+        source: formData.source || null,
+        destination: formData.destination || null,
+        vehicle: formData.vehicle ? Number(formData.vehicle) : null,
+        driver: formData.driver ? Number(formData.driver) : null,
+        trip_date: formData.trip_date || null,
+        arrival_date: formData.arrival_date || null,
+        arrival_km: formData.arrival_km ? Number(formData.arrival_km) : null,
+        planned_distance_km: formData.planned_distance_km ? Number(formData.planned_distance_km) : 0,
+        cargo_weight_kg: formData.cargo_weight_kg ? Number(formData.cargo_weight_kg) : 0,
+        revenue: Number(calculateTotalFreight()) || 0,
+        narration: formData.narration || '',
+        planned_eta: formData.planned_eta || null,
+      };
       const tripRes = await api.post('/trips/', payload);
       const tripId = tripRes.data.id;
       
       // 2. Create LR Details
       for (const lr of lrDetails) {
         if (lr.lr_number) {
-          await api.post('/trips/lr-details/', { ...lr, trip: tripId });
+          const lrPayload = {
+            lr_number: lr.lr_number,
+            lr_date: lr.lr_date || null,
+            consignor: lr.consignor || '',
+            consignee: lr.consignee || '',
+            from_city: lr.from_city || '',
+            to_city: lr.to_city || '',
+            goods_description: lr.goods_description || '',
+            loading_weight: lr.loading_weight ? Number(lr.loading_weight) : 0,
+            unloading_weight: lr.unloading_weight ? Number(lr.unloading_weight) : 0,
+            party_rate: lr.party_rate ? Number(lr.party_rate) : 0,
+            total_freight: lr.total_freight ? Number(lr.total_freight) : 0,
+            shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
+            trip: tripId,
+          };
+          await api.post('/trips/lr-details/', lrPayload);
         }
       }
       
