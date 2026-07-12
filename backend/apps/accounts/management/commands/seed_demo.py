@@ -65,14 +65,15 @@ class Command(BaseCommand):
             self.stdout.write("  Superuser: admin@transitops.com / admin123")
 
         # Create vehicles
+        # Create vehicles (Indian registration numbers)
         vehicles_data = [
-            ("AU12AB4891", "Van-04", "Van", 800, 74000, 630000, Vehicle.AVAILABLE, "North"),
-            ("AU12AB4892", "Truck-01", "Truck", 1000, 120000, 1200000, Vehicle.ON_TRIP, "South"),
-            ("AU12AB4893", "Van-05", "Van", 500, 44000, 420000, Vehicle.IN_SHOP, "East"),
-            ("AU40AB4893", "Truck-02", "Truck", 707, 88000, 990000, Vehicle.RETIRED, "West"),
-            ("MH12AB1234", "Mini-01", "Mini", 300, 22000, 280000, Vehicle.AVAILABLE, "North"),
-            ("KA05CD5678", "Van-06", "Van", 600, 55000, 510000, Vehicle.AVAILABLE, "South"),
-            ("TN09EF9012", "Truck-03", "Truck", 1200, 200000, 1500000, Vehicle.AVAILABLE, "East"),
+            ("MH12AB4891", "Tata LPT 1618", "Truck", 10000, 74000, 1600000, Vehicle.AVAILABLE, "West"),
+            ("GJ01CD4892", "Ashok Leyland Dost", "Mini-truck", 1250, 120000, 650000, Vehicle.ON_TRIP, "West"),
+            ("UP14EF4893", "Tata Ace Gold", "Mini-truck", 750, 44000, 420000, Vehicle.IN_SHOP, "North"),
+            ("DL01GH4893", "Mahindra Bolero Pik-Up", "Van", 1700, 88000, 990000, Vehicle.RETIRED, "North"),
+            ("KA51JK1234", "Eicher Pro 2049", "Truck", 5000, 22000, 1280000, Vehicle.AVAILABLE, "South"),
+            ("TN09LM5678", "BharatBenz 1923C", "Heavy-truck", 19000, 55000, 3100000, Vehicle.AVAILABLE, "South"),
+            ("WB02NP9012", "Tata Prima 2830.K", "Heavy-truck", 28000, 200000, 4500000, Vehicle.AVAILABLE, "East"),
         ]
         vehicles = {}
         for reg, name, vtype, cap, odo, acq, vstatus, region in vehicles_data:
@@ -89,13 +90,16 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Vehicle: {reg} ({name})")
 
         # Create drivers
+        # Create drivers (Indian names)
         drivers_data = [
-            ("Alex Kumar", "DL001234", "LMV", date.today() + timedelta(days=500), "9876543210", 95, Driver.AVAILABLE),
-            ("Suresh Patel", "DL005678", "HMV", date.today() + timedelta(days=200), "9876543211", 88, Driver.ON_TRIP),
-            ("Rajesh Singh", "DL009012", "LMV", date.today() - timedelta(days=30), "9876543212", 72, Driver.AVAILABLE),  # expired license
-            ("Priya Sharma", "DL003456", "LMV", date.today() + timedelta(days=365), "9876543213", 91, Driver.SUSPENDED),
-            ("Mohan Das", "DL007890", "HMV", date.today() + timedelta(days=180), "9876543214", 85, Driver.AVAILABLE),
-            ("Vijay Kumar", "DL002345", "HMV", date.today() + timedelta(days=730), "9876543215", 93, Driver.AVAILABLE),
+            ("Amit Desai", "DL14202301", "HMV", date.today() + timedelta(days=500), "9876543210", 95, Driver.AVAILABLE),
+            ("Suresh Patel", "GJ01201988", "HMV", date.today() + timedelta(days=200), "9876543211", 88, Driver.ON_TRIP),
+            ("Rajesh Singh", "UP16201534", "LMV", date.today() - timedelta(days=30), "9876543212", 72, Driver.AVAILABLE),  # expired license
+            ("Kavita Sharma", "DL01202156", "LMV", date.today() + timedelta(days=365), "9876543213", 91, Driver.SUSPENDED),
+            ("Mohan Das", "WB02201890", "HMV", date.today() + timedelta(days=180), "9876543214", 85, Driver.AVAILABLE),
+            ("Vijay Kumar", "TN09202045", "HMV", date.today() + timedelta(days=730), "9876543215", 93, Driver.AVAILABLE),
+            ("Arjun Reddy", "KA51201999", "HMV", date.today() + timedelta(days=600), "9876543216", 98, Driver.AVAILABLE),
+            ("Manoj Tiwari", "BR01202277", "LMV", date.today() + timedelta(days=150), "9876543217", 82, Driver.AVAILABLE),
         ]
         drivers = {}
         for name, lic, cat, expiry, contact, score, dstatus in drivers_data:
@@ -113,15 +117,15 @@ class Command(BaseCommand):
 
         # Create completed trip with fuel log
         disp_user = users.get(Role.DISPATCHER)
-        van04 = vehicles.get("AU12AB4891")
-        alex = drivers.get("DL001234")
-        if van04 and alex:
+        tata_lpt = vehicles.get("MH12AB4891")
+        amit = drivers.get("DL14202301")
+        if tata_lpt and amit:
             trip1, created = Trip.objects.get_or_create(
-                source="Mumbai Depot",
-                destination="Pune Hub",
+                source="Mumbai, MH",
+                destination="Pune, MH",
                 defaults={
-                    "vehicle": van04, "driver": alex,
-                    "cargo_weight_kg": 400, "planned_distance_km": 150,
+                    "vehicle": tata_lpt, "driver": amit,
+                    "cargo_weight_kg": 4500, "planned_distance_km": 150,
                     "revenue": 25000, "status": Trip.COMPLETED,
                     "dispatched_at": timezone.now() - timedelta(days=2),
                     "completed_at": timezone.now() - timedelta(days=1),
@@ -131,64 +135,65 @@ class Command(BaseCommand):
             )
             if created:
                 FuelLog.objects.get_or_create(
-                    vehicle=van04, trip=trip1,
-                    defaults={"date": date.today() - timedelta(days=1), "litres": 18, "cost": 2340, "odometer_at_fill": 74150}
+                    vehicle=tata_lpt, trip=trip1,
+                    defaults={"date": date.today() - timedelta(days=1), "litres": 18, "cost": 1750, "odometer_at_fill": 74150}
                 )
                 self.stdout.write(f"  Trip: {trip1.trip_code} (Completed)")
 
         # Create a dispatched trip
-        truck1 = vehicles.get("AU12AB4892")
-        suresh = drivers.get("DL005678")
-        if truck1 and suresh:
+        dost = vehicles.get("GJ01CD4892")
+        suresh = drivers.get("GJ01201988")
+        if dost and suresh:
             trip2, created = Trip.objects.get_or_create(
-                source="Chennai Port",
-                destination="Bangalore Depot",
+                source="Ahmedabad, GJ",
+                destination="Surat, GJ",
                 defaults={
-                    "vehicle": truck1, "driver": suresh,
-                    "cargo_weight_kg": 800, "planned_distance_km": 350,
-                    "revenue": 45000, "status": Trip.DISPATCHED,
+                    "vehicle": dost, "driver": suresh,
+                    "cargo_weight_kg": 1200, "planned_distance_km": 260,
+                    "revenue": 14000, "status": Trip.DISPATCHED,
                     "dispatched_at": timezone.now() - timedelta(hours=3),
                     "created_by": disp_user,
+                    "expected_return_date": date.today() - timedelta(days=1), # Make it overdue for demo
                 }
             )
             if created:
-                self.stdout.write(f"  Trip: {trip2.trip_code} (Dispatched)")
+                self.stdout.write(f"  Trip: {trip2.trip_code} (Dispatched & Overdue)")
 
         # Create draft trips
-        mini1 = vehicles.get("MH12AB1234")
-        mohan = drivers.get("DL007890")
-        if mini1 and mohan:
+        eicher = vehicles.get("KA51JK1234")
+        arjun = drivers.get("KA51201999")
+        if eicher and arjun:
             trip3, created = Trip.objects.get_or_create(
-                source="Delhi Hub",
-                destination="Noida Depot",
+                source="Bengaluru, KA",
+                destination="Mysuru, KA",
                 defaults={
-                    "vehicle": mini1, "driver": mohan,
-                    "cargo_weight_kg": 200, "planned_distance_km": 40,
-                    "revenue": 8000, "status": Trip.DRAFT,
+                    "vehicle": eicher, "driver": arjun,
+                    "cargo_weight_kg": 4500, "planned_distance_km": 145,
+                    "revenue": 18000, "status": Trip.DRAFT,
                     "created_by": disp_user,
                 }
             )
             if created:
                 self.stdout.write(f"  Trip: {trip3.trip_code} (Draft)")
 
-        # Create maintenance record (Van-05 In Shop)
-        van05 = vehicles.get("AU12AB4893")
-        if van05:
+        # Create maintenance record
+        ace_gold = vehicles.get("UP14EF4893")
+        if ace_gold:
             mr, created = MaintenanceRecord.objects.get_or_create(
-                vehicle=van05, service_type="Oil Change",
+                vehicle=ace_gold, service_type="Oil Change",
                 defaults={
-                    "cost": 6800, "date": date.today() - timedelta(days=1),
+                    "cost": 3500, "date": date.today() - timedelta(days=1),
                     "status": MaintenanceRecord.IN_SHOP
                 }
             )
             if created:
-                self.stdout.write(f"  Maintenance: {van05.registration_number} — Oil Change")
+                self.stdout.write(f"  Maintenance: {ace_gold.registration_number} — Oil Change")
 
         # Expenses
-        if van04:
+        if tata_lpt:
             Expense.objects.get_or_create(
-                vehicle=van04, category="Toll", amount=150, date=date.today() - timedelta(days=1),
-                defaults={"notes": "Highway toll"}
+                vehicle=tata_lpt, category="Toll", amount=450, date=date.today() - timedelta(days=1),
+                defaults={"notes": "Mumbai-Pune Expressway Toll"}
             )
 
         self.stdout.write(self.style.SUCCESS("\nDEMO DATA SEEDED SUCCESSFULLY!"))
