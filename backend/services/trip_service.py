@@ -162,12 +162,21 @@ def complete_trip(trip_id: int, final_odometer_km, fuel_consumed_l, user) -> "Tr
 
         # Compute actual distance from odometer delta
         prev_odometer = float(vehicle.odometer_km)
+        distance_km = max(final_odometer_km - prev_odometer, float(trip.planned_distance_km))
+
+        # BR14: Update rolling mileage average
+        if fuel_consumed_l > 0:
+            current_efficiency = distance_km / fuel_consumed_l
+            if vehicle.rolling_mileage_avg:
+                vehicle.rolling_mileage_avg = (float(vehicle.rolling_mileage_avg) + current_efficiency) / 2
+            else:
+                vehicle.rolling_mileage_avg = current_efficiency
 
         # BR7: Restore vehicle and driver to Available
         vehicle.status = Vehicle.AVAILABLE
         vehicle.odometer_km = final_odometer_km
         vehicle.last_depot_return = timezone.now()  # BR12: update depot return time
-        vehicle.save(update_fields=["status", "odometer_km", "last_depot_return", "updated_at"])
+        vehicle.save(update_fields=["status", "odometer_km", "rolling_mileage_avg", "last_depot_return", "updated_at"])
 
         driver.status = Driver.AVAILABLE
         driver.save(update_fields=["status", "updated_at"])

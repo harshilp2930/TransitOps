@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Truck, ShieldAlert, Key } from 'lucide-react';
+import Link from 'next/link';
 
 type ApiError = {
   response?: {
@@ -139,6 +140,11 @@ export default function LoginPage() {
               className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="••••••••"
             />
+            <div className="flex justify-end mt-1.5">
+              <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <button
@@ -154,6 +160,13 @@ export default function LoginPage() {
               'Sign In'
             )}
           </button>
+          
+          <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+            Don't have an account?{' '}
+            <Link href="/register" className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+              Register here
+            </Link>
+          </div>
         </form>
       </div>
     </div>

@@ -43,6 +43,11 @@ class Vehicle(models.Model):
     odometer_km = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tyre_changed_odometer_km = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # BR14
     acquisition_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    rolling_mileage_avg = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    tyre_replacement_threshold = models.DecimalField(max_digits=12, decimal_places=2, default=40000)
+    insurance_expiry = models.DateField(null=True, blank=True)
+    fitness_expiry = models.DateField(null=True, blank=True)
+    permit_expiry = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=AVAILABLE)
     region = models.CharField(max_length=100, blank=True, default="")
     owner_name = models.CharField(max_length=200, blank=True, default="")
@@ -65,8 +70,8 @@ class Vehicle(models.Model):
 
     @property
     def needs_tyre_change(self):
-        """BR14: Tyre wear threshold flag (40,000 km)"""
-        return (self.odometer_km - self.tyre_changed_odometer_km) >= 40000
+        """BR14: Tyre wear threshold flag"""
+        return (self.odometer_km - self.tyre_changed_odometer_km) >= self.tyre_replacement_threshold
 
     @property
     def is_depot_overdue(self):

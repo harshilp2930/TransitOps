@@ -32,8 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       const token = Cookies.get('access_token');
       const userData = Cookies.get('user_data');
+      const publicPaths = ['/login', '/register', '/forgot-password'];
       if (!token) {
-        if (pathname !== '/login') router.push('/login');
+        if (!publicPaths.includes(pathname)) router.push('/login');
         setLoading(false);
         return;
       }
@@ -50,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Cookies.remove('access_token');
         Cookies.remove('refresh_token');
         Cookies.remove('user_data');
-        if (pathname !== '/login') router.push('/login');
+        const publicPaths = ['/login', '/register', '/forgot-password'];
+        if (!publicPaths.includes(pathname)) router.push('/login');
         setUser(null);
       } finally {
         setLoading(false);
@@ -71,7 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Cookies.remove('refresh_token');
         Cookies.remove('user_data');
         setUser(null);
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        const publicPaths = ['/login', '/register', '/forgot-password'];
+        if (typeof window !== 'undefined' && !publicPaths.includes(window.location.pathname)) {
           window.location.href = '/login';
         }
       }

@@ -32,7 +32,7 @@ class TripSerializer(serializers.ModelSerializer):
             "status", "created_at", "updated_at",
             "dispatched_at", "completed_at", "cancelled_at",
             "final_odometer_km", "fuel_consumed_l",
-            "home_depot_id", "created_by", "created_by_name", "lr_details"
+            "home_depot_id", "expected_return_date", "created_by", "created_by_name", "lr_details"
         ]
         read_only_fields = [
             "id", "trip_code", "created_at", "updated_at",
@@ -55,7 +55,7 @@ class TripCreateSerializer(serializers.ModelSerializer):
             "id", "trip_code",
             "source", "destination", "vehicle", "driver", "departure_km",
             "cargo_weight_kg", "planned_distance_km", "revenue", "planned_eta",
-            "load_type", "freight_type", "home_depot_id"
+            "load_type", "freight_type", "home_depot_id", "expected_return_date"
         ]
         read_only_fields = ["id", "trip_code"]
 
@@ -102,6 +102,6 @@ class TripListSerializer(serializers.ModelSerializer):
             "id", "trip_code", "source", "destination",
             "vehicle", "vehicle_reg", "driver", "driver_name",
             "cargo_weight_kg", "planned_distance_km", "revenue", "planned_eta",
-            "load_type", "freight_type", "status",
+            "load_type", "freight_type", "status", "expected_return_date",
             "created_at", "dispatched_at", "completed_at", "cancelled_at"
         ]
