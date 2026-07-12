@@ -13,6 +13,7 @@ export default function AddTripPage() {
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<{id: number; registration_number: string}[]>([]);
   const [drivers, setDrivers] = useState<{id: number; name: string}[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
 
   // Core Trip Fields
   const [formData, setFormData] = useState({
@@ -65,6 +66,13 @@ export default function AddTripPage() {
   useEffect(() => {
     // eslint-disable-next-line
     fetchLookups();
+    // load saved locations from localStorage
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('trip_locations') : null;
+      if (stored) setLocations(JSON.parse(stored));
+    } catch (e) {
+      console.error('failed to load locations', e);
+    }
   }, []);
 
 
@@ -212,9 +220,14 @@ export default function AddTripPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <label className="text-sm text-slate-500 mr-2">Truck</label>
-                <select value={formData.vehicle} onChange={e => setFormData({...formData, vehicle: e.target.value})} className="px-2 py-1 border rounded bg-slate-50 dark:bg-slate-950">
+                <select value={formData.vehicle} onChange={e => {
+                    const v = e.target.value;
+                    if (v === '__add__') { window.location.href = '/vehicles/new'; return; }
+                    setFormData({...formData, vehicle: v});
+                  }} className="px-2 py-1 border rounded bg-slate-50 dark:bg-slate-950">
                   <option value="">Select</option>
                   {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
+                  <option value="__add__">+ Add new...</option>
                 </select>
                 <button type="button" onClick={async () => {
                   if (!formData.vehicle) return;
@@ -240,16 +253,26 @@ export default function AddTripPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Vehicle</label>
-                  <select value={formData.vehicle} onChange={e => setFormData({...formData, vehicle: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                  <select value={formData.vehicle} onChange={e => {
+                      const v = e.target.value;
+                      if (v === '__add__') { window.location.href = '/vehicles/new'; return; }
+                      setFormData({...formData, vehicle: v});
+                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
                     <option value="">Select Vehicle</option>
                     {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
+                    <option value="__add__">+ Add new...</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Driver</label>
-                  <select value={formData.driver} onChange={e => setFormData({...formData, driver: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                  <select value={formData.driver} onChange={e => {
+                      const v = e.target.value;
+                      if (v === '__add__') { window.location.href = '/drivers/new'; return; }
+                      setFormData({...formData, driver: v});
+                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
                     <option value="">Select Driver</option>
                     {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <option value="__add__">+ Add new...</option>
                   </select>
                 </div>
               </div>
@@ -257,11 +280,45 @@ export default function AddTripPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Source (From)</label>
-                  <input value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                  <select value={formData.source} onChange={e => {
+                      const v = e.target.value;
+                      if (v === '__add__') {
+                        const name = window.prompt('Add new source location');
+                        if (name) {
+                          const next = [...locations, name];
+                          setLocations(next);
+                          try { localStorage.setItem('trip_locations', JSON.stringify(next)); } catch {}
+                          setFormData(prev => ({...prev, source: name}));
+                        }
+                      } else {
+                        setFormData({...formData, source: v});
+                      }
+                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <option value="">Select Source</option>
+                    {locations.map((l, i) => <option key={i} value={l}>{l}</option>)}
+                    <option value="__add__">+ Add new...</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Destination (To)</label>
-                  <input value={formData.destination} onChange={e => setFormData({...formData, destination: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                  <select value={formData.destination} onChange={e => {
+                      const v = e.target.value;
+                      if (v === '__add__') {
+                        const name = window.prompt('Add new destination location');
+                        if (name) {
+                          const next = [...locations, name];
+                          setLocations(next);
+                          try { localStorage.setItem('trip_locations', JSON.stringify(next)); } catch {}
+                          setFormData(prev => ({...prev, destination: name}));
+                        }
+                      } else {
+                        setFormData({...formData, destination: v});
+                      }
+                    }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <option value="">Select Destination</option>
+                    {locations.map((l, i) => <option key={i} value={l}>{l}</option>)}
+                    <option value="__add__">+ Add new...</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Planned Distance (Km)</label>
