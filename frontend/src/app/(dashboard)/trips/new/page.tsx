@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Save, FileText, IndianRupee, Droplets, Wrench, Plus, Trash2 } from 'lucide-react';
@@ -14,6 +14,9 @@ export default function AddTripPage() {
   const [vehicles, setVehicles] = useState<{id: number; registration_number: string}[]>([]);
   const [drivers, setDrivers] = useState<{id: number; name: string}[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
+  const searchParams = useSearchParams();
+  const tripIdParam = searchParams ? searchParams.get('tripId') : null;
+  const [isEditing, setIsEditing] = useState(false);
 
   // Core Trip Fields
   const [formData, setFormData] = useState({
@@ -72,6 +75,57 @@ export default function AddTripPage() {
       if (stored) setLocations(JSON.parse(stored));
     } catch (e) {
       console.error('failed to load locations', e);
+    }
+    // if editing via tripId query param, load trip and LR details
+    if (tripIdParam) {
+      setIsEditing(true);
+      (async () => {
+        try {
+          const res = await api.get(`/trips/${tripIdParam}/`);
+          const data = res.data;
+          setFormData(prev => ({
+            ...prev,
+            trip_date: data.trip_date || prev.trip_date,
+            trip_code: data.trip_code || prev.trip_code,
+            vehicle: data.vehicle ? String(data.vehicle) : prev.vehicle,
+            driver: data.driver ? String(data.driver) : prev.driver,
+            source: data.source || prev.source,
+            destination: data.destination || prev.destination,
+            arrival_date: data.arrival_date || prev.arrival_date,
+            arrival_km: data.arrival_km ?? prev.arrival_km,
+            departure_km: data.departure_km ?? prev.departure_km,
+            planned_distance_km: data.planned_distance_km ?? prev.planned_distance_km,
+            cargo_weight_kg: data.cargo_weight_kg ?? prev.cargo_weight_kg,
+            revenue: data.revenue ?? prev.revenue,
+            narration: data.narration || prev.narration,
+          }));
+          // load LR details (if endpoint exists)
+          try {
+            const lr = await api.get(`/trips/${tripIdParam}/lr-details/`);
+            if (lr.data && Array.isArray(lr.data) && lr.data.length) {
+              setLrDetails(lr.data.map((r: any) => ({
+                lr_number: r.lr_number || '',
+                lr_date: r.lr_date || '',
+                consignor: r.consignor || '',
+                consignee: r.consignee || '',
+                from_city: r.from_city || '',
+                to_city: r.to_city || '',
+                goods_description: r.goods_description || '',
+                loading_weight: r.loading_weight ? String(r.loading_weight) : '0',
+                unloading_weight: r.unloading_weight ? String(r.unloading_weight) : '0',
+                party_rate: r.party_rate ? String(r.party_rate) : '0',
+                total_freight: r.total_freight ? String(r.total_freight) : '0',
+                shortage_amount: r.shortage_amount ? String(r.shortage_amount) : '0',
+                id: r.id,
+              })));
+            }
+          } catch (e) {
+            // ignore missing lr endpoint
+          }
+        } catch (err) {
+          console.error('Failed to load trip for edit', err);
+        }
+      })();
     }
   }, []);
 
@@ -168,7 +222,7 @@ export default function AddTripPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Create Trip — sanitize types: send null for empty, numbers for numeric fields
+      // 1. Create or update Trip — sanitize types
       const payload = {
         source: formData.source || '',
         destination: formData.destination || '',
@@ -182,36 +236,69 @@ export default function AddTripPage() {
         revenue: Number(calculateTotalFreight()) || 0,
         narration: formData.narration || '',
         planned_eta: formData.planned_eta || null,
+        trip_code: formData.trip_code || '',
       };
-      const tripRes = await api.post('/trips/', payload);
-      const tripId = tripRes.data.id;
-      
-      // 2. Create LR Details
-      for (const lr of lrDetails) {
-        if (lr.lr_number) {
-          const lrPayload = {
-            lr_number: lr.lr_number,
-            lr_date: lr.lr_date || null,
-            consignor: lr.consignor || '',
-            consignee: lr.consignee || '',
-            from_city: lr.from_city || '',
-            to_city: lr.to_city || '',
-            goods_description: lr.goods_description || '',
-            loading_weight: lr.loading_weight ? Number(lr.loading_weight) : 0,
-            unloading_weight: lr.unloading_weight ? Number(lr.unloading_weight) : 0,
-            party_rate: lr.party_rate ? Number(lr.party_rate) : 0,
-            total_freight: lr.total_freight ? Number(lr.total_freight) : 0,
-            shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
-            trip: tripId,
-          };
-          await api.post('/trips/lr-details/', lrPayload);
+
+      if (isEditing && tripIdParam) {
+        await api.patch(`/trips/${tripIdParam}/`, payload);
+        // naive LR sync: delete existing and re-create from lrDetails
+        try {
+          const existing = await api.get(`/trips/${tripIdParam}/lr-details/`);
+          if (existing.data && Array.isArray(existing.data)) {
+            for (const r of existing.data) {
+              await api.delete(`/trips/lr-details/${r.id}/`);
+            }
+          }
+        } catch (e) { /* ignore */ }
+        for (const lr of lrDetails) {
+          if (lr.lr_number) {
+            const lrPayload = {
+              lr_number: lr.lr_number,
+              lr_date: lr.lr_date || null,
+              consignor: lr.consignor || '',
+              consignee: lr.consignee || '',
+              from_city: lr.from_city || '',
+              to_city: lr.to_city || '',
+              goods_description: lr.goods_description || '',
+              loading_weight: lr.loading_weight ? Number(lr.loading_weight) : 0,
+              unloading_weight: lr.unloading_weight ? Number(lr.unloading_weight) : 0,
+              party_rate: lr.party_rate ? Number(lr.party_rate) : 0,
+              total_freight: lr.total_freight ? Number(lr.total_freight) : 0,
+              shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
+              trip: tripIdParam,
+            };
+            await api.post('/trips/lr-details/', lrPayload);
+          }
         }
+        toast.success('Trip updated');
+        router.push('/trips');
+      } else {
+        const tripRes = await api.post('/trips/', payload);
+        const tripId = tripRes.data.id;
+        for (const lr of lrDetails) {
+          if (lr.lr_number) {
+            const lrPayload = {
+              lr_number: lr.lr_number,
+              lr_date: lr.lr_date || null,
+              consignor: lr.consignor || '',
+              consignee: lr.consignee || '',
+              from_city: lr.from_city || '',
+              to_city: lr.to_city || '',
+              goods_description: lr.goods_description || '',
+              loading_weight: lr.loading_weight ? Number(lr.loading_weight) : 0,
+              unloading_weight: lr.unloading_weight ? Number(lr.unloading_weight) : 0,
+              party_rate: lr.party_rate ? Number(lr.party_rate) : 0,
+              total_freight: lr.total_freight ? Number(lr.total_freight) : 0,
+              shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
+              trip: tripId,
+            };
+            await api.post('/trips/lr-details/', lrPayload);
+          }
+        }
+        toast.success('Trip and LR Details saved successfully!');
+        router.push('/trips');
       }
-      
-      toast.success('Trip and LR Details saved successfully!');
-      router.push('/trips');
     } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error = err as any;
       toast.error('Failed to save trip. Check fields.');
       console.error(error);
