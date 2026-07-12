@@ -25,6 +25,7 @@ class TripSerializer(serializers.ModelSerializer):
             "id", "trip_code", "trip_date", "source", "destination",
             "vehicle", "vehicle_detail",
             "driver", "driver_detail",
+            "departure_km", "run_km", "average_kmpl",
             "cargo_weight_kg", "planned_distance_km", "revenue", "planned_eta",
             "arrival_date", "arrival_km", "narration",
             "load_type", "freight_type",
@@ -40,8 +41,9 @@ class TripSerializer(serializers.ModelSerializer):
         ]
 
     def validate_cargo_weight_kg(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Cargo weight must be positive.")
+        # allow zero weight (legacy behaviour); only reject negative values
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Cargo weight cannot be negative.")
         return value
 
 
@@ -51,15 +53,16 @@ class TripCreateSerializer(serializers.ModelSerializer):
         model = Trip
         fields = [
             "id", "trip_code",
-            "source", "destination", "vehicle", "driver",
+            "source", "destination", "vehicle", "driver", "departure_km",
             "cargo_weight_kg", "planned_distance_km", "revenue", "planned_eta",
             "load_type", "freight_type", "home_depot_id"
         ]
         read_only_fields = ["id", "trip_code"]
 
     def validate_cargo_weight_kg(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Cargo weight must be positive.")
+        # allow zero weight on create to match legacy behaviour
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Cargo weight cannot be negative.")
         return value
 
 
