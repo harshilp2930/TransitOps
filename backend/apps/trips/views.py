@@ -163,6 +163,23 @@ class TripViewSet(viewsets.ModelViewSet):
         trip.save(update_fields=["trip_code"])
         return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["get"])
+    def history(self, request, pk=None):
+        """GET /api/v1/trips/{id}/history/ — returns audit trail of changes."""
+        trip = self.get_object()
+        history_qs = trip.history.all().order_by("-history_date")
+        data = []
+        for h in history_qs:
+            data.append({
+                "history_id": h.history_id,
+                "history_date": h.history_date,
+                "history_type": h.history_type,
+                "history_user": h.history_user.username if h.history_user else None,
+                "status": h.status,
+                "run_km": str(h.run_km) if h.run_km else None,
+            })
+        return Response(data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["get"], url_path="lr/(?P<lr_id>[^/.]+)/pdf")
     def lr_pdf(self, request, pk=None, lr_id=None):
         """Generate PDF for a specific Lorry Receipt"""

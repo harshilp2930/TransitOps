@@ -13,8 +13,9 @@ class ExpenseAdmin(admin.ModelAdmin):
     list_display = ["vehicle", "trip", "category", "amount", "date"]
     list_filter = ["category"]
 
+from simple_history.admin import SimpleHistoryAdmin
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
+class PaymentAdmin(SimpleHistoryAdmin):
     list_display = ["vehicle", "trip", "payment_type", "amount", "payment_mode", "date"]
     list_filter = ["payment_type", "payment_mode"]

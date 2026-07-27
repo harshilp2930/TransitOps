@@ -4,6 +4,7 @@ FuelLog: tracks fuel consumption per vehicle/trip.
 Expense: tracks toll/misc expenses per vehicle/trip.
 """
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class FuelLog(models.Model):
@@ -110,6 +111,18 @@ class Payment(models.Model):
         null=True, blank=True,
         related_name="payments"
     )
+    driver = models.ForeignKey(
+        "drivers.Driver",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="payments"
+    )
+    party = models.ForeignKey(
+        "parties.Party",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="payments"
+    )
     date = models.DateField()
     payment_type = models.CharField(max_length=30, choices=PAYMENT_TYPE_CHOICES, default=ADVANCE)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -117,6 +130,8 @@ class Payment(models.Model):
     reference_no = models.CharField(max_length=100, blank=True, default="")
     remarks = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         db_table = "payments"

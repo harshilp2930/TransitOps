@@ -5,6 +5,7 @@ Lifecycle: Draft → Dispatched → Completed / Cancelled
 import uuid
 from django.db import models
 from django.contrib.auth import get_user_model
+from simple_history.models import HistoricalRecords
 
 User = get_user_model()
 
@@ -118,6 +119,8 @@ class Trip(models.Model):
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="created_trips"
     )
+
+    history = HistoricalRecords()
 
     class Meta:
         db_table = "trips"

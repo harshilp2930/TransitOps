@@ -5,6 +5,7 @@ Status enum: Available / On Trip / In Shop / Retired.
 Phase 4: Added owner_type (Company vs Market), broker FK, avg_mileage_kmpl.
 """
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class Vehicle(models.Model):
@@ -81,6 +82,8 @@ class Vehicle(models.Model):
     last_depot_return = models.DateTimeField(null=True, blank=True)  # BR12
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         db_table = "vehicles"
