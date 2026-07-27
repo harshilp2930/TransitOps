@@ -4,19 +4,21 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Save, FileText, IndianRupee, Droplets, Wrench, Plus, Trash2, Printer, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, FileText, IndianRupee, Droplets, Wrench, Plus, Trash2, Printer, AlertTriangle, Activity } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AddTripPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('lr_detail');
   const [loading, setLoading] = useState(false);
-  const [vehicles, setVehicles] = useState<{id: number; registration_number: string; max_load_capacity_kg?: number}[]>([]);
+  const [vehicles, setVehicles] = useState<{id: number; registration_number: string; max_load_capacity_kg?: number; avg_mileage_kmpl?: string}[]>([]);
   const [drivers, setDrivers] = useState<{id: number; name: string}[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const searchParams = useSearchParams();
   const tripIdParam = searchParams ? searchParams.get('tripId') : null;
   const [isEditing, setIsEditing] = useState(false);
+  const [tripHistory, setTripHistory] = useState<any[]>([]);
 
   // Core Trip Fields
   const [formData, setFormData] = useState({
@@ -93,12 +95,14 @@ export default function AddTripPage() {
 
   const fetchLookups = async () => {
     try {
-      const [vRes, dRes] = await Promise.all([
+      const [vRes, dRes, rRes] = await Promise.all([
         api.get('/vehicles/'),
-        api.get('/drivers/')
+        api.get('/drivers/'),
+        api.get('/routes/')
       ]);
       setVehicles(vRes.data.results || vRes.data);
       setDrivers(dRes.data.results || dRes.data);
+      setRoutes(rRes.data.results || rRes.data);
     } catch (err) {
       console.error(err);
     }
@@ -131,6 +135,32 @@ export default function AddTripPage() {
     const avg = 0;
     return { run, avg };
   };
+
+  const computePredictiveROI = () => {
+    if (!formData.vehicle || !formData.planned_distance_km) return null;
+    const vehicle = vehicles.find(v => String(v.id) === String(formData.vehicle));
+    if (!vehicle || !vehicle.avg_mileage_kmpl) return null;
+    
+    const distance = parseFloat(formData.planned_distance_km) || 0;
+    const mileage = parseFloat(vehicle.avg_mileage_kmpl);
+    if (mileage <= 0 || distance <= 0) return null;
+    
+    const fuelPrice = 90; // Standard fuel price assumption for ROI
+    const expectedFuelLitres = distance / mileage;
+    const expectedFuelCost = expectedFuelLitres * fuelPrice;
+    
+    const expectedRevenue = calculateTotalFreight();
+    // Use toll from expenses if any
+    const expectedTolls = expenseDetails.filter(e => e.category === 'Toll').reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const expectedDriverAdvances = paymentDetails.filter(p => p.payment_type === 'Advance').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    
+    const margin = expectedRevenue - (expectedFuelCost + expectedTolls + expectedDriverAdvances);
+    const roiPercentage = expectedRevenue > 0 ? (margin / expectedRevenue) * 100 : 0;
+    
+    return { expectedFuelCost, expectedRevenue, margin, roiPercentage };
+  };
+
+  const roiData = computePredictiveROI();
 
   useEffect(() => {
     // eslint-disable-next-line
@@ -247,6 +277,14 @@ export default function AddTripPage() {
             }
           } catch (e) {
             console.warn('failed to load payments for trip', e);
+          }
+
+          // load History
+          try {
+            const histRes = await api.get(`/trips/${tripIdParam}/history/`);
+            setTripHistory(histRes.data || []);
+          } catch (e) {
+            console.warn('failed to load trip history', e);
           }
         } catch (err) {
           console.error('Failed to load trip for edit', err);
@@ -657,7 +695,14 @@ export default function AddTripPage() {
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Create a comprehensive trip profile and load details</p>
           </div>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex items-center space-x-3">
+          {roiData && (
+            <div className={`px-4 py-2 rounded-lg border flex items-center shadow-sm ${roiData.margin > 0 ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800/50 dark:text-green-400' : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800/50 dark:text-red-400'}`}>
+              <div className="text-sm font-semibold">
+                Est. ROI: ₹{roiData.margin.toLocaleString(undefined, {maximumFractionDigits: 0})} ({roiData.roiPercentage.toFixed(1)}%)
+              </div>
+            </div>
+          )}
           <button onClick={() => window.print()} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium">Print</button>
           <Link href="/trips" className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium">
             Cancel
@@ -842,6 +887,23 @@ export default function AddTripPage() {
 
               <div className="space-y-4">
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Standard Route</label>
+                  <select onChange={e => {
+                      const rt = routes.find(r => String(r.id) === String(e.target.value));
+                      if (rt) {
+                        setFormData(prev => ({
+                          ...prev,
+                          source: rt.source,
+                          destination: rt.destination,
+                          planned_distance_km: rt.standard_distance_km || '0'
+                        }));
+                      }
+                    }} className="w-full px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg text-blue-800 dark:text-blue-300 focus:ring-2 focus:ring-blue-500 transition-colors">
+                    <option value="">-- Optional: Auto-fill from Route Master --</option>
+                    {routes.map(r => <option key={r.id} value={r.id}>{r.source} to {r.destination} ({r.standard_distance_km} km)</option>)}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Source (From)</label>
                     <select value={formData.source} onChange={e => {
                         const v = e.target.value;
@@ -953,6 +1015,12 @@ export default function AddTripPage() {
                 <IndianRupee className="w-4 h-4 mr-2" />
                 Payment Detail
               </button>
+              {isEditing && (
+                <button onClick={() => setActiveTab('history')} className={`px-6 py-4 text-sm font-medium flex items-center border-b-2 transition-colors whitespace-nowrap ${activeTab === 'history' ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900' : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
+                  <Activity className="w-4 h-4 mr-2" />
+                  Activity Log
+                </button>
+              )}
             </div>
 
             {/* Tab Contents */}
@@ -1168,6 +1236,45 @@ export default function AddTripPage() {
                       <Plus className="w-4 h-4 mr-1" /> Add Row
                     </button>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'history' && isEditing && (
+                <div className="animate-in fade-in duration-300">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Action</th>
+                        <th className="px-4 py-3">User</th>
+                        <th className="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {tripHistory.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-slate-500">No activity logged for this trip yet.</td>
+                        </tr>
+                      ) : (
+                        tripHistory.map((hist, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="px-4 py-3 font-medium">{new Date(hist.history_date).toLocaleString()}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                hist.history_type === '+' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                hist.history_type === '~' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              }`}>
+                                {hist.history_type === '+' ? 'Created' : hist.history_type === '~' ? 'Updated' : 'Deleted'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">{hist.history_user || 'System'}</td>
+                            <td className="px-4 py-3">{hist.status}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
