@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -20,11 +20,29 @@ export default function AddVehiclePage() {
     max_load_capacity_kg: '',
     odometer_km: '0',
     acquisition_cost: '0',
+    avg_mileage_kmpl: '',
     region: '',
     owner_name: '',
     account_reference: '',
     status: 'Available',
+    owner_type: 'Company',
+    broker: '',
+    broker_tds_rate: '0',
   });
+
+  const [brokers, setBrokers] = useState<{id: number; name: string; gstin: string}[]>([]);
+
+  useEffect(() => {
+    const fetchBrokers = async () => {
+      try {
+        const res = await api.get('/parties/?party_type=Broker');
+        setBrokers(res.data.results || res.data);
+      } catch (err) {
+        console.error('Failed to load brokers:', err);
+      }
+    };
+    fetchBrokers();
+  }, []);
 
   // Since we are mocking the complex document saves for now, we just hold them in state
   const [documents, setDocuments] = useState({
@@ -102,20 +120,50 @@ export default function AddVehiclePage() {
             </div>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Truck No. (Reg)</label>
-                <input value={formData.registration_number} onChange={e => setFormData({...formData, registration_number: e.target.value.toUpperCase()})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Owner Name</label>
-                <input value={formData.owner_name} onChange={e => setFormData({...formData, owner_name: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Reference</label>
-                <input value={formData.account_reference} onChange={e => setFormData({...formData, account_reference: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
-              </div>
-              
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Truck No. (Reg)</label>
+                  <input value={formData.registration_number} onChange={e => setFormData({...formData, registration_number: e.target.value.toUpperCase()})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Owner Type</label>
+                  <select value={formData.owner_type} onChange={e => setFormData({...formData, owner_type: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                    <option value="Company">Company Owned</option>
+                    <option value="Market">Market / Hired</option>
+                  </select>
+                </div>
+              </div>
+
+              {formData.owner_type === 'Market' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Broker</label>
+                    <select value={formData.broker} onChange={e => setFormData({...formData, broker: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
+                      <option value="">Select Broker</option>
+                      {brokers.map(b => (
+                        <option key={b.id} value={b.id}>{b.name} {b.gstin ? `(${b.gstin})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Broker TDS %</label>
+                    <input value={formData.broker_tds_rate} onChange={e => setFormData({...formData, broker_tds_rate: e.target.value})} type="number" step="0.01" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Owner Name</label>
+                    <input value={formData.owner_name} onChange={e => setFormData({...formData, owner_name: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Reference</label>
+                    <input value={formData.account_reference} onChange={e => setFormData({...formData, account_reference: e.target.value})} type="text" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                  </div>
+                </>
+              )}
+              
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
                   <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors">
@@ -128,6 +176,10 @@ export default function AddVehiclePage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacity (kg)</label>
                   <input value={formData.max_load_capacity_kg} onChange={e => setFormData({...formData, max_load_capacity_kg: e.target.value})} type="number" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Avg Mileage (kmpl)</label>
+                  <input value={formData.avg_mileage_kmpl} onChange={e => setFormData({...formData, avg_mileage_kmpl: e.target.value})} type="number" step="0.1" placeholder="e.g. 4.5" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors" />
                 </div>
               </div>
             </div>

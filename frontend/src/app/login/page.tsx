@@ -52,10 +52,56 @@ export default function LoginPage() {
   };
 
   const quickRoles = [
-    { label: 'Fleet Manager', email: 'fleet@transitops.com' },
-    { label: 'Dispatcher', email: 'dispatcher@transitops.com' },
-    { label: 'Safety Officer', email: 'safety@transitops.com' },
-    { label: 'Financial Analyst', email: 'finance@transitops.com' }
+    {
+      label: 'Fleet Manager',
+      fullName: 'Fleet Manager',
+      email: 'fleet@transitops.com',
+      password: 'transitops123',
+      color: 'from-blue-500 to-blue-600',
+      bg: 'bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border-blue-200 dark:border-blue-500/30',
+      text: 'text-blue-700 dark:text-blue-300',
+      dot: 'bg-blue-500',
+    },
+    {
+      label: 'Dispatcher',
+      fullName: 'Trip Dispatcher',
+      email: 'dispatcher@transitops.com',
+      password: 'transitops123',
+      color: 'from-violet-500 to-violet-600',
+      bg: 'bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 border-violet-200 dark:border-violet-500/30',
+      text: 'text-violet-700 dark:text-violet-300',
+      dot: 'bg-violet-500',
+    },
+    {
+      label: 'Safety Officer',
+      fullName: 'Safety Officer',
+      email: 'safety@transitops.com',
+      password: 'transitops123',
+      color: 'from-amber-500 to-amber-600',
+      bg: 'bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 border-amber-200 dark:border-amber-500/30',
+      text: 'text-amber-700 dark:text-amber-300',
+      dot: 'bg-amber-500',
+    },
+    {
+      label: 'Financial Analyst',
+      fullName: 'Financial Analyst',
+      email: 'finance@transitops.com',
+      password: 'transitops123',
+      color: 'from-emerald-500 to-emerald-600',
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30',
+      text: 'text-emerald-700 dark:text-emerald-300',
+      dot: 'bg-emerald-500',
+    },
+    {
+      label: 'Admin',
+      fullName: 'Admin (Staff)',
+      email: 'admin@transitops.com',
+      password: 'transitops123',
+      color: 'from-rose-500 to-rose-600',
+      bg: 'bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border-rose-200 dark:border-rose-500/30',
+      text: 'text-rose-700 dark:text-rose-300',
+      dot: 'bg-rose-500',
+    },
   ];
 
   return (
@@ -83,25 +129,32 @@ export default function LoginPage() {
         {/* Quick Login Options */}
         <div className="mb-6">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 text-center">
-            Quick Sign In
+            Quick Sign In — Demo Accounts
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {quickRoles.map((role) => (
               <button
                 key={role.email}
                 type="button"
                 onClick={() => {
                   setEmail(role.email);
-                  handleLogin(role.email, 'transitops123');
+                  handleLogin(role.email, role.password);
                 }}
                 disabled={isLoading}
-                className="flex items-center justify-center px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-200 dark:border-transparent"
+                className={`flex items-center gap-3 px-3 py-2.5 ${role.bg} border rounded-lg transition-all text-left disabled:opacity-50 group`}
               >
-                <Key className="w-3 h-3 mr-1.5 opacity-70" />
-                {role.label}
+                <div className={`w-2 h-2 rounded-full ${role.dot} shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-semibold ${role.text}`}>{role.label}</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{role.email}</div>
+                </div>
+                <Key className={`w-3 h-3 ${role.text} opacity-0 group-hover:opacity-100 transition-opacity shrink-0`} />
               </button>
             ))}
           </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2">
+            All accounts use password: <span className="font-mono font-semibold">transitops123</span>
+          </p>
         </div>
 
         <div className="relative mb-6">
