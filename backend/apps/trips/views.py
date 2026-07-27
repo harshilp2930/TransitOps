@@ -8,10 +8,14 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.trips.models import Trip, TripLRDetail
 from apps.trips.serializers import (
-    TripSerializer, TripCreateSerializer, TripListSerializer, TripCompleteSerializer, TripLRDetailSerializer
+    TripSerializer, TripCreateSerializer, TripListSerializer, TripCompleteSerializer, TripLRDetailSerializer,
+    FreightInvoiceSerializer
 )
 from apps.accounts.permissions import IsDispatcherOrReadOnly
 from services.trip_service import dispatch_trip, complete_trip, cancel_trip, TripServiceError
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+import weasyprint
 
 
 class TripLRDetailViewSet(viewsets.ModelViewSet):
@@ -158,3 +162,26 @@ class TripViewSet(viewsets.ModelViewSet):
         trip.trip_code = code
         trip.save(update_fields=["trip_code"])
         return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="lr/(?P<lr_id>[^/.]+)/pdf")
+    def lr_pdf(self, request, pk=None, lr_id=None):
+        """Generate PDF for a specific Lorry Receipt"""
+        try:
+            trip = self.get_object()
+            lr = TripLRDetail.objects.get(id=lr_id, trip=trip)
+            
+            context = {
+                "trip": trip,
+                "lr": lr,
+                "net_amount": float(lr.total_freight) + float(lr.cgst) + float(lr.sgst) + float(lr.igst) - float(lr.shortage_amount)
+            }
+            html_string = render_to_string("lr_template.html", context)
+            pdf_file = weasyprint.HTML(string=html_string).write_pdf()
+            
+            response = HttpResponse(pdf_file, content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="LR_{lr.lr_number}.pdf"'
+            return response
+        except TripLRDetail.DoesNotExist:
+            return Response({"detail": "LR not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

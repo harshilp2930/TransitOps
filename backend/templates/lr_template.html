@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Lorry Receipt</title>
+    <style>
+        body { font-family: "Helvetica", "Arial", sans-serif; font-size: 12px; color: #333; }
+        .container { width: 100%; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .company-name { font-size: 24px; font-weight: bold; }
+        .document-title { font-size: 18px; margin-top: 5px; text-transform: uppercase; }
+        
+        .row { display: table; width: 100%; margin-bottom: 10px; }
+        .col-half { display: table-cell; width: 50%; vertical-align: top; }
+        
+        .info-box { border: 1px solid #ddd; padding: 10px; margin-right: 10px; margin-bottom: 10px; min-height: 80px; }
+        .info-box:last-child { margin-right: 0; }
+        .info-title { font-weight: bold; margin-bottom: 5px; font-size: 11px; text-transform: uppercase; color: #666; }
+        
+        table.items { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+        table.items th, table.items td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        table.items th { background-color: #f5f5f5; font-weight: bold; }
+        
+        .totals { float: right; width: 40%; border: 1px solid #ddd; padding: 10px; }
+        .total-row { display: table; width: 100%; margin-bottom: 5px; }
+        .total-label { display: table-cell; width: 60%; font-weight: bold; }
+        .total-value { display: table-cell; width: 40%; text-align: right; }
+        .grand-total { border-top: 1px solid #ddd; padding-top: 5px; margin-top: 5px; font-size: 14px; }
+        
+        .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #777; clear: both; }
+        .signatures { margin-top: 60px; display: table; width: 100%; }
+        .sig-box { display: table-cell; width: 33%; text-align: center; border-top: 1px dashed #999; padding-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="company-name">TransitOps Logistics</div>
+            <div class="document-title">Lorry Receipt (LR)</div>
+        </div>
+
+        <div class="row">
+            <div class="col-half">
+                <div class="info-box">
+                    <div class="info-title">LR Details</div>
+                    <div><strong>LR No:</strong> {{ lr.lr_number }}</div>
+                    <div><strong>Date:</strong> {{ lr.lr_date|default:"-" }}</div>
+                    <div><strong>Freight By:</strong> {{ lr.freight_by }}</div>
+                    <div><strong>E-Way Bill:</strong> {{ lr.eway_bill_number|default:"-" }}</div>
+                </div>
+            </div>
+            <div class="col-half">
+                <div class="info-box" style="margin-right:0;">
+                    <div class="info-title">Trip & Vehicle Details</div>
+                    <div><strong>Trip Code:</strong> {{ trip.trip_code }}</div>
+                    <div><strong>Vehicle:</strong> {{ trip.vehicle.registration_number|default:"N/A" }}</div>
+                    <div><strong>Driver:</strong> {{ trip.driver.name|default:"N/A" }}</div>
+                    <div><strong>Route:</strong> {{ trip.source }} to {{ trip.destination }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-half">
+                <div class="info-box">
+                    <div class="info-title">Consignor (From)</div>
+                    <div><strong>Name:</strong> {{ lr.consignor_party.name|default:lr.consignor }}</div>
+                    {% if lr.consignor_party %}
+                        <div><strong>GSTIN:</strong> {{ lr.consignor_party.gstin|default:"-" }}</div>
+                        <div><strong>Address:</strong> {{ lr.consignor_party.address|default:"-" }}</div>
+                    {% endif %}
+                    <div><strong>City:</strong> {{ lr.from_city }}</div>
+                </div>
+            </div>
+            <div class="col-half">
+                <div class="info-box" style="margin-right:0;">
+                    <div class="info-title">Consignee (To)</div>
+                    <div><strong>Name:</strong> {{ lr.consignee_party.name|default:lr.consignee }}</div>
+                    {% if lr.consignee_party %}
+                        <div><strong>GSTIN:</strong> {{ lr.consignee_party.gstin|default:"-" }}</div>
+                        <div><strong>Address:</strong> {{ lr.consignee_party.address|default:"-" }}</div>
+                    {% endif %}
+                    <div><strong>City:</strong> {{ lr.to_city }}</div>
+                </div>
+            </div>
+        </div>
+
+        <table class="items">
+            <thead>
+                <tr>
+                    <th>Description of Goods</th>
+                    <th style="text-align: right;">Loading Weight (Kg)</th>
+                    <th style="text-align: right;">Unloading Weight (Kg)</th>
+                    <th style="text-align: right;">Rate (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ lr.goods_description|default:"-" }}</td>
+                    <td style="text-align: right;">{{ lr.loading_weight }}</td>
+                    <td style="text-align: right;">{{ lr.unloading_weight }}</td>
+                    <td style="text-align: right;">{{ lr.party_rate }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="total-row">
+                <div class="total-label">Basic Freight:</div>
+                <div class="total-value">₹{{ lr.total_freight }}</div>
+            </div>
+            {% if lr.cgst > 0 %}
+            <div class="total-row">
+                <div class="total-label">CGST:</div>
+                <div class="total-value">₹{{ lr.cgst }}</div>
+            </div>
+            {% endif %}
+            {% if lr.sgst > 0 %}
+            <div class="total-row">
+                <div class="total-label">SGST:</div>
+                <div class="total-value">₹{{ lr.sgst }}</div>
+            </div>
+            {% endif %}
+            {% if lr.igst > 0 %}
+            <div class="total-row">
+                <div class="total-label">IGST:</div>
+                <div class="total-value">₹{{ lr.igst }}</div>
+            </div>
+            {% endif %}
+            {% if lr.shortage_amount > 0 %}
+            <div class="total-row">
+                <div class="total-label" style="color: red;">Shortage Deduction:</div>
+                <div class="total-value" style="color: red;">-₹{{ lr.shortage_amount }}</div>
+            </div>
+            {% endif %}
+            
+            <div class="total-row grand-total">
+                <div class="total-label">Net Amount:</div>
+                <!-- This will be computed in python and passed in context -->
+                <div class="total-value">₹{{ net_amount }}</div>
+            </div>
+        </div>
+
+        <div class="signatures">
+            <div class="sig-box">Consignor's Signature</div>
+            <div class="sig-box">Driver's Signature</div>
+            <div class="sig-box">Receiver's Signature</div>
+        </div>
+
+        <div class="footer">
+            Generated by TransitOps Logistics Platform &bull; Date: {% now "Y-m-d H:i" %}
+        </div>
+    </div>
+</body>
+</html>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Save, FileText, IndianRupee, Droplets, Wrench, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, FileText, IndianRupee, Droplets, Wrench, Plus, Trash2, Printer, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AddTripPage() {
@@ -35,10 +35,12 @@ export default function AddTripPage() {
     cargo_weight_kg: '0',
     revenue: '0',
     narration: '',
+    planned_eta: '',
   });
 
   // LR Details State (Multiple)
   const [lrDetails, setLrDetails] = useState([{
+    id: undefined as number | undefined,
     lr_number: '',
     lr_date: '',
     consignor: '',
@@ -50,7 +52,12 @@ export default function AddTripPage() {
     unloading_weight: '0',
     party_rate: '0',
     total_freight: '0',
-    shortage_amount: '0'
+    shortage_amount: '0',
+    eway_bill_number: '',
+    freight_by: 'TBB',
+    cgst: '0',
+    sgst: '0',
+    igst: '0',
   }]);
 
   // Pump Details State (Multiple)
@@ -61,6 +68,7 @@ export default function AddTripPage() {
     cost: '',
     odometer_at_fill: '',
     pump_name: 'HPCL',
+    is_anomaly: false,
   }]);
 
   // Expense Details State (Multiple)
@@ -174,6 +182,11 @@ export default function AddTripPage() {
                 party_rate: r.party_rate ? String(r.party_rate) : '0',
                 total_freight: r.total_freight ? String(r.total_freight) : '0',
                 shortage_amount: r.shortage_amount ? String(r.shortage_amount) : '0',
+                eway_bill_number: r.eway_bill_number || '',
+                freight_by: r.freight_by || 'TBB',
+                cgst: r.cgst ? String(r.cgst) : '0',
+                sgst: r.sgst ? String(r.sgst) : '0',
+                igst: r.igst ? String(r.igst) : '0',
                 id: r.id,
               })));
             }
@@ -193,6 +206,7 @@ export default function AddTripPage() {
                 cost: String(r.cost || ''),
                 odometer_at_fill: String(r.odometer_at_fill || ''),
                 pump_name: r.pump_name || 'HPCL',
+                is_anomaly: r.is_anomaly_flagged || false,
               })));
             }
           } catch (e) {
@@ -270,11 +284,30 @@ export default function AddTripPage() {
     }
   };
 
+  const createDriver = async () => {
+    setDriverLoading(true);
+    try {
+      const res = await api.post('/drivers/', driverForm);
+      const d = res.data;
+      const newD = { id: d.id, name: d.name || driverForm.name };
+      setDrivers(prev => [newD, ...prev]);
+      setFormData(prev => ({ ...prev, driver: String(newD.id) }));
+      setShowDriverModal(false);
+      setDriverForm({ name: '', license_number: '', license_category: '', license_expiry_date: '', contact_number: '', safety_score: '100', status: 'Available' });
+      toast.success('Driver added');
+    } catch (err: unknown) {
+      const error = err as any;
+      toast.error(error.response?.data?.license_number?.[0] || 'Failed to add driver');
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
   const addLrRow = () => {
     setLrDetails([...lrDetails, {
-      lr_number: '', lr_date: '', consignor: '', consignee: '', from_city: '', to_city: '', 
+      id: undefined, lr_number: '', lr_date: '', consignor: '', consignee: '', from_city: '', to_city: '', 
       goods_description: '', loading_weight: '0', unloading_weight: '0', party_rate: '0', 
-      total_freight: '0', shortage_amount: '0'
+      total_freight: '0', shortage_amount: '0', eway_bill_number: '', freight_by: 'TBB', cgst: '0', sgst: '0', igst: '0'
     }]);
   };
 
@@ -300,13 +333,13 @@ export default function AddTripPage() {
   };
 
   const addPumpRow = () => {
-    setPumpDetails([...pumpDetails, { id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '', pump_name: 'HPCL' }]);
+    setPumpDetails([...pumpDetails, { id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '', pump_name: 'HPCL', is_anomaly: false }]);
   };
   const removePumpRow = (index: number) => {
     if (pumpDetails.length > 1) {
       setPumpDetails(pumpDetails.filter((_, i) => i !== index));
     } else {
-      setPumpDetails([{ id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '' }]);
+      setPumpDetails([{ id: undefined, date: '', litres: '', cost: '', odometer_at_fill: '', pump_name: 'HPCL', is_anomaly: false }]);
     }
   };
   const handlePumpChange = (index: number, field: string, val: string) => {
@@ -416,6 +449,11 @@ export default function AddTripPage() {
               party_rate: lr.party_rate ? Number(lr.party_rate) : 0,
               total_freight: lr.total_freight ? Number(lr.total_freight) : 0,
               shortage_amount: lr.shortage_amount ? Number(lr.shortage_amount) : 0,
+              eway_bill_number: lr.eway_bill_number || '',
+              freight_by: lr.freight_by || 'TBB',
+              cgst: lr.cgst ? Number(lr.cgst) : 0,
+              sgst: lr.sgst ? Number(lr.sgst) : 0,
+              igst: lr.igst ? Number(lr.igst) : 0,
               trip: tripIdParam,
             };
             if (lr.id) {
@@ -951,9 +989,16 @@ export default function AddTripPage() {
                           <td className="px-1 py-1"><input value={lr.party_rate} onChange={e => handleLrChange(idx, 'party_rate', e.target.value)} type="number" className="w-20 p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700 text-right" /></td>
                           <td className="px-1 py-1"><input readOnly value={lr.total_freight} type="number" className="w-24 p-1.5 border rounded bg-slate-100 dark:bg-slate-800 dark:border-slate-700 text-right font-medium" /></td>
                           <td className="px-1 py-1 text-center">
-                            <button onClick={() => removeLrRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-center space-x-1">
+                              {lr.id && (
+                                <a href={`http://localhost:8000/api/v1/trips/${tripIdParam}/lr/${lr.id}/pdf/`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded" title="Print LR">
+                                  <Printer className="w-4 h-4" />
+                                </a>
+                              )}
+                              <button onClick={() => removeLrRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded" title="Remove">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -999,7 +1044,12 @@ export default function AddTripPage() {
                             </select>
                           </td>
                           <td className="px-1 py-1"><input value={pump.litres} onChange={e => handlePumpChange(idx, 'litres', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 50" /></td>
-                          <td className="px-1 py-1"><input value={pump.cost} onChange={e => handlePumpChange(idx, 'cost', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 4500" /></td>
+                          <td className="px-1 py-1">
+                            <div className="flex items-center gap-2">
+                              <input value={pump.cost} onChange={e => handlePumpChange(idx, 'cost', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 4500" />
+                              {pump.is_anomaly && <span title="Cost or mileage anomaly detected"><AlertTriangle className="w-4 h-4 text-red-500 shrink-0" /></span>}
+                            </div>
+                          </td>
                           <td className="px-1 py-1"><input value={pump.odometer_at_fill} onChange={e => handlePumpChange(idx, 'odometer_at_fill', e.target.value)} type="number" className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" placeholder="e.g. 74100" /></td>
                           <td className="px-1 py-1 text-center">
                             <button onClick={() => removePumpRow(idx)} type="button" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded">

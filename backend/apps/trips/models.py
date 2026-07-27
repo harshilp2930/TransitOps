@@ -131,8 +131,14 @@ class TripLRDetail(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="lr_details")
     lr_number = models.CharField(max_length=100)
     lr_date = models.DateField(null=True, blank=True)
-    consignor = models.CharField(max_length=200)
-    consignee = models.CharField(max_length=200)
+    consignor = models.CharField(max_length=200, blank=True, default="")
+    consignee = models.CharField(max_length=200, blank=True, default="")
+    consignor_party = models.ForeignKey(
+        "parties.Party", on_delete=models.SET_NULL, null=True, blank=True, related_name="consignor_lrs"
+    )
+    consignee_party = models.ForeignKey(
+        "parties.Party", on_delete=models.SET_NULL, null=True, blank=True, related_name="consignee_lrs"
+    )
     from_city = models.CharField(max_length=100)
     to_city = models.CharField(max_length=100)
     goods_description = models.CharField(max_length=200, blank=True, default="")
@@ -142,6 +148,14 @@ class TripLRDetail(models.Model):
     total_freight = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     shortage_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
+    # New fields for Ecount parity
+    eway_bill_number = models.CharField(max_length=50, blank=True, default="")
+    FREIGHT_CHOICES = [("TBB", "To Be Billed"), ("To Pay", "To Pay"), ("Paid", "Paid")]
+    freight_by = models.CharField(max_length=20, choices=FREIGHT_CHOICES, default="TBB")
+    cgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -149,3 +163,24 @@ class TripLRDetail(models.Model):
 
     def __str__(self):
         return f"LR {self.lr_number} for {self.trip.trip_code}"
+
+
+class FreightInvoice(models.Model):
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="invoices")
+    invoice_number = models.CharField(max_length=50, unique=True)
+    invoice_date = models.DateField(auto_now_add=True)
+    party = models.ForeignKey("parties.Party", on_delete=models.PROTECT)
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    cgst = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    grand_total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "freight_invoices"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Invoice {self.invoice_number} for {self.trip.trip_code}"
