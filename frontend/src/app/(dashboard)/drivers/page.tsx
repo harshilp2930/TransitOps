@@ -6,6 +6,7 @@ import { Plus, Search, Filter, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { format, isPast, isBefore, addDays } from 'date-fns';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type ApiError = {
   response?: {
@@ -42,6 +43,7 @@ export default function DriversPage() {
   });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager', 'Safety Officer']);
   const router = useRouter();
@@ -109,8 +111,8 @@ export default function DriversPage() {
   };
 
   const filteredDrivers = drivers.filter(d => {
-    const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) || 
-                          d.license_number.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = d.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                          d.license_number.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesStatus = statusFilter ? d.status === statusFilter : true;
     return matchesSearch && matchesStatus;
   });

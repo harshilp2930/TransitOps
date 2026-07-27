@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Fuel, Receipt, Plus } from 'lucide-react';
+import { Fuel, Receipt, Plus, IndianRupee } from 'lucide-react';
 import { format } from 'date-fns';
 
 type ApiError = {
@@ -32,6 +32,19 @@ interface Expense {
   notes: string;
 }
 
+interface Payment {
+  id: number;
+  payment_type: string;
+  payment_mode: string;
+  amount: string;
+  date: string;
+  reference_number: string;
+  notes: string;
+  trip_code?: string;
+  driver_name?: string;
+  party_name?: string;
+}
+
 interface VehicleOption {
   id: number;
   registration_number: string;
@@ -48,10 +61,11 @@ interface TripOption {
 export default function FinancePage() {
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [trips, setTrips] = useState<TripOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'fuel' | 'expenses'>('fuel');
+  const [activeTab, setActiveTab] = useState<'fuel' | 'expenses' | 'payments'>('fuel');
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState('');
   
@@ -75,14 +89,16 @@ export default function FinancePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [fuelRes, expRes, vehiclesRes, tripsRes] = await Promise.all([
+        const [fuelRes, expRes, payRes, vehiclesRes, tripsRes] = await Promise.all([
           api.get('/fuel-logs/'),
           api.get('/expenses/'),
+          api.get('/payments/'),
           api.get('/vehicles/'),
           api.get('/trips/'),
         ]);
         setFuelLogs(fuelRes.data.results || fuelRes.data);
         setExpenses(expRes.data.results || expRes.data);
+        setPayments(payRes.data.results || payRes.data);
         setVehicles(vehiclesRes.data.results || vehiclesRes.data);
         setTrips(tripsRes.data.results || tripsRes.data);
       } catch (err) {
@@ -258,7 +274,18 @@ export default function FinancePage() {
             }`}
           >
             <Receipt className="w-4 h-4 mr-2" />
-            Other Expenses
+            Expenses
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center ${
+              activeTab === 'payments' 
+                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-500/5' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+            }`}
+          >
+            <IndianRupee className="w-4 h-4 mr-2" />
+            Payments
           </button>
         </div>
 
@@ -298,7 +325,7 @@ export default function FinancePage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === 'expenses' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400">
@@ -326,6 +353,45 @@ export default function FinancePage() {
                   )) : (
                     <tr>
                       <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No expenses found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400">
+                  <tr>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4">Mode</th>
+                    <th className="px-6 py-4">Amount (₹)</th>
+                    <th className="px-6 py-4">Context</th>
+                    <th className="px-6 py-4">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
+                  {payments.length > 0 ? payments.map((pay) => (
+                    <tr key={pay.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4">{format(new Date(pay.date), 'MMM dd, yyyy')}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
+                          {pay.payment_type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{pay.payment_mode}</td>
+                      <td className="px-6 py-4 font-medium text-emerald-600 dark:text-emerald-400">₹{parseFloat(pay.amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                        {pay.trip_code && <div>Trip: {pay.trip_code}</div>}
+                        {pay.driver_name && <div>Driver: {pay.driver_name}</div>}
+                        {pay.party_name && <div>Party: {pay.party_name}</div>}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={pay.notes}>{pay.notes || '-'}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No payments found.</td>
                     </tr>
                   )}
                 </tbody>

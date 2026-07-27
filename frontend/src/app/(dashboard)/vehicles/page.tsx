@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type ApiError = {
   response?: {
@@ -33,6 +34,7 @@ export default function VehiclesPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const { hasRole } = useAuth();
   const canEdit = hasRole(['Fleet Manager']);
   const router = useRouter();
@@ -74,8 +76,8 @@ export default function VehiclesPage() {
   };
 
   const filteredVehicles = vehicles.filter(v => {
-    const matchesSearch = v.registration_number.toLowerCase().includes(search.toLowerCase()) || 
-                          v.name_model.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = v.registration_number.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                          v.name_model.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesStatus = statusFilter ? v.status === statusFilter : true;
     return matchesSearch && matchesStatus;
   });

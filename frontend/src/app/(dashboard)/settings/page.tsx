@@ -12,6 +12,12 @@ export default function SettingsPage() {
   const [roles, setRoles] = useState<any[]>([]);
   const [permissionsList, setPermissionsList] = useState<string[]>([]);
   const [fetching, setFetching] = useState(true);
+  
+  const [companySettings, setCompanySettings] = useState({
+    name: 'TransitOps Logistics',
+    timezone: 'Asia/Kolkata',
+    currency: 'INR (₹)',
+  });
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -69,6 +75,47 @@ export default function SettingsPage() {
         >
           {loading ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Changes</>}
         </button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm p-6 mb-6">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+          General Settings
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
+            <input 
+              type="text" 
+              value={companySettings.name} 
+              onChange={e => setCompanySettings({...companySettings, name: e.target.value})}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-blue-500" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Timezone</label>
+            <select 
+              value={companySettings.timezone} 
+              onChange={e => setCompanySettings({...companySettings, timezone: e.target.value})}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">America/New_York (EST)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Currency</label>
+            <select 
+              value={companySettings.currency} 
+              onChange={e => setCompanySettings({...companySettings, currency: e.target.value})}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="INR (₹)">INR (₹)</option>
+              <option value="USD ($)">USD ($)</option>
+              <option value="EUR (€)">EUR (€)</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">

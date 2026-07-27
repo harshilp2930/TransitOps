@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock, AlertTriangle, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type ApiError = {
   response?: {
@@ -52,6 +53,7 @@ export default function LiveBoardPage() {
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   const { hasRole } = useAuth();
   const canDispatch = hasRole(['Dispatcher']);
@@ -324,8 +326,8 @@ export default function LiveBoardPage() {
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
         {(() => {
           const filterTrips = (trips: Trip[]) => {
-            if (!search) return trips;
-            const q = search.toLowerCase();
+            if (!debouncedSearch) return trips;
+            const q = debouncedSearch.toLowerCase();
             return trips.filter(t => 
               t.trip_code.toLowerCase().includes(q) || 
               (t.vehicle_reg && t.vehicle_reg.toLowerCase().includes(q)) || 
