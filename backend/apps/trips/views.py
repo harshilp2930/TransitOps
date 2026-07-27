@@ -15,7 +15,7 @@ from apps.accounts.permissions import IsDispatcherOrReadOnly
 from services.trip_service import dispatch_trip, complete_trip, cancel_trip, TripServiceError
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-import weasyprint
+# weasyprint imported lazily inside lr_pdf action to avoid blocking server start on Windows (missing GTK)
 
 
 class TripLRDetailViewSet(viewsets.ModelViewSet):
@@ -167,6 +167,7 @@ class TripViewSet(viewsets.ModelViewSet):
     def lr_pdf(self, request, pk=None, lr_id=None):
         """Generate PDF for a specific Lorry Receipt"""
         try:
+            import weasyprint  # Lazy import — avoids GTK crash on Windows at startup
             trip = self.get_object()
             lr = TripLRDetail.objects.get(id=lr_id, trip=trip)
             

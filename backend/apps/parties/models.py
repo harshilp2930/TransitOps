@@ -36,6 +36,15 @@ class Party(models.Model):
         max_digits=14, decimal_places=2, default=0,
         help_text="Outstanding balance (positive = receivable, negative = payable)"
     )
+    # TDS / Tax fields (Indian accounting compliance)
+    tds_applicable = models.BooleanField(default=False, help_text="Is TDS applicable on payments to this party?")
+    tds_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="TDS rate in %")
+    tds_section = models.CharField(max_length=20, blank=True, default="194C", help_text="TDS section (e.g. 194C for transporters)")
+    # Bank details for direct transfers
+    bank_name = models.CharField(max_length=100, blank=True, default="")
+    bank_account_number = models.CharField(max_length=50, blank=True, default="")
+    bank_ifsc = models.CharField(max_length=20, blank=True, default="")
+    bank_branch = models.CharField(max_length=100, blank=True, default="")
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -80,3 +89,36 @@ class FreightRate(models.Model):
 
     def __str__(self):
         return f"{self.from_city} → {self.to_city} ({self.truck_type or 'Any'}) = ₹{self.rate}"
+
+
+class Route(models.Model):
+    """Route master: standard city pairs with pre-calculated costs.
+    Used for auto-filling trip details and predictive ROI.
+    """
+    source = models.CharField(max_length=100, db_index=True)
+    destination = models.CharField(max_length=100, db_index=True)
+    standard_distance_km = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    standard_driver_allowance = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Fixed driver allowance/batta for this route (INR)"
+    )
+    estimated_tolls = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Estimated toll charges for this route (INR)"
+    )
+    estimated_fuel_cost = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Estimated total fuel cost at average mileage (INR)"
+    )
+    notes = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "routes"
+        unique_together = [("source", "destination")]
+        ordering = ["source", "destination"]
+
+    def __str__(self):
+        return f"{self.source} → {self.destination} ({self.standard_distance_km} km)"

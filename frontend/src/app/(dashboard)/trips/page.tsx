@@ -1,19 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus, Clock, AlertTriangle, Search } from 'lucide-react';
+import {
+  Play, CheckCircle, XCircle, Truck, User as UserIcon, Plus,
+  Clock, AlertTriangle, Search, GripVertical, ArrowRight
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  type DragStartEvent, type DragEndEvent, closestCenter
+} from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 
-type ApiError = {
-  response?: {
-    data?: {
-      detail?: string;
-    };
-  };
-};
+type ApiError = { response?: { data?: { detail?: string } } };
 
 interface Trip {
   id: number;
@@ -35,15 +37,169 @@ interface BoardData {
   cancelled: Trip[];
 }
 
-interface VehicleOption {
-  id: number;
-  registration_number: string;
+interface VehicleOption { id: number; registration_number: string; }
+interface DriverOption { id: number; name: string; license_number: string; }
+
+const STATUS_COLORS: Record<string, string> = {
+  Draft: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  Dispatched: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  Completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  Cancelled: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+};
+
+const COLUMN_META: Record<string, { label: string; icon: React.ReactNode; color: string; headerBg: string }> = {
+  draft: {
+    label: 'Draft', icon: <Clock className="w-4 h-4" />,
+    color: 'border-slate-300 dark:border-slate-700',
+    headerBg: 'bg-slate-50 dark:bg-slate-800/60',
+  },
+  dispatched: {
+    label: 'On Trip', icon: <Truck className="w-4 h-4 text-blue-500" />,
+    color: 'border-blue-300 dark:border-blue-600/50',
+    headerBg: 'bg-blue-50 dark:bg-blue-500/10',
+  },
+  completed: {
+    label: 'Completed', icon: <CheckCircle className="w-4 h-4 text-emerald-500" />,
+    color: 'border-emerald-300 dark:border-emerald-600/50',
+    headerBg: 'bg-emerald-50 dark:bg-emerald-500/10',
+  },
+  cancelled: {
+    label: 'Cancelled', icon: <XCircle className="w-4 h-4 text-red-400" />,
+    color: 'border-red-200 dark:border-red-700/50',
+    headerBg: 'bg-red-50 dark:bg-red-500/10',
+  },
+};
+
+// --- Draggable Trip Card ---
+function TripCard({
+  trip, isDragging = false, onAction, actionLoading, canDispatch, router
+}: {
+  trip: Trip; isDragging?: boolean; onAction?: (tripId: number, action: string) => void;
+  actionLoading: number | null; canDispatch: boolean; router: ReturnType<typeof useRouter>
+}) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: trip.id });
+  const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined;
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white dark:bg-slate-900 border ${isDragging ? 'border-blue-400 shadow-xl opacity-80' : 'border-slate-200 dark:border-slate-800'} rounded-xl p-4 space-y-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div {...attributes} {...listeners} className="text-slate-300 hover:text-slate-500 cursor-grab shrink-0">
+            <GripVertical className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-bold text-slate-900 dark:text-white text-sm font-mono">{trip.trip_code}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+              <span className="truncate">{trip.source}</span>
+              <ArrowRight className="w-3 h-3 shrink-0" />
+              <span className="truncate">{trip.destination}</span>
+            </div>
+          </div>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${STATUS_COLORS[trip.status] || STATUS_COLORS['Draft']}`}>
+          {trip.status}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        {trip.vehicle_reg && (
+          <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+            <Truck className="w-3 h-3 text-slate-400" />
+            <span className="font-mono">{trip.vehicle_reg}</span>
+          </div>
+        )}
+        {trip.driver_name && (
+          <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+            <UserIcon className="w-3 h-3 text-slate-400" />
+            <span className="truncate">{trip.driver_name}</span>
+          </div>
+        )}
+        <div className="text-slate-600 dark:text-slate-400">{trip.cargo_weight_kg} kg</div>
+        <div className="text-emerald-600 dark:text-emerald-400 font-semibold">₹{Number(trip.revenue).toLocaleString()}</div>
+      </div>
+
+      {canDispatch && (
+        <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+          {trip.status === 'Draft' && (
+            <button
+              onClick={e => { e.stopPropagation(); onAction?.(trip.id, 'dispatch'); }}
+              disabled={actionLoading === trip.id}
+              className="flex-1 flex items-center justify-center gap-1 text-xs font-medium py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Play className="w-3 h-3" /> Dispatch
+            </button>
+          )}
+          {trip.status === 'Dispatched' && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); router.push(`/trips/new?edit=${trip.id}`); }}
+                className="flex-1 text-xs font-medium py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+              >
+                Complete
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction?.(trip.id, 'cancel'); }}
+                disabled={actionLoading === trip.id}
+                className="px-3 text-xs font-medium py-1.5 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          {trip.status === 'Draft' && (
+            <button
+              onClick={e => { e.stopPropagation(); onAction?.(trip.id, 'cancel'); }}
+              disabled={actionLoading === trip.id}
+              className="px-3 text-xs py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
-interface DriverOption {
-  id: number;
-  name: string;
-  license_number: string;
+// --- Droppable Column ---
+function KanbanColumn({
+  id, trips, onAction, actionLoading, canDispatch, router
+}: {
+  id: string; trips: Trip[];
+  onAction: (tripId: number, action: string) => void;
+  actionLoading: number | null; canDispatch: boolean; router: ReturnType<typeof useRouter>
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  const meta = COLUMN_META[id];
+  return (
+    <div className="flex flex-col min-w-[280px] flex-1">
+      <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-xl border ${meta.color} border-b-0 ${meta.headerBg}`}>
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+          {meta.icon} {meta.label}
+        </div>
+        <span className="text-xs font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full px-2 py-0.5 border border-slate-200 dark:border-slate-700">
+          {trips.length}
+        </span>
+      </div>
+      <div
+        ref={setNodeRef}
+        className={`flex-1 border ${meta.color} rounded-b-xl p-3 space-y-3 min-h-[400px] transition-colors ${isOver ? 'bg-blue-50/50 dark:bg-blue-500/5' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}
+      >
+        {trips.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-32 text-slate-400 dark:text-slate-600">
+            <div className="text-3xl mb-2 opacity-30">—</div>
+            <div className="text-xs">Drop trips here</div>
+          </div>
+        )}
+        {trips.map(trip => (
+          <TripCard key={trip.id} trip={trip} onAction={onAction} actionLoading={actionLoading} canDispatch={canDispatch} router={router} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function LiveBoardPage() {
@@ -54,6 +210,7 @@ export default function LiveBoardPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
 
   const { hasRole } = useAuth();
   const canDispatch = hasRole(['Dispatcher']);
@@ -61,62 +218,72 @@ export default function LiveBoardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState('');
   const [form, setForm] = useState({
-    source: '',
-    destination: '',
-    vehicle: '',
-    driver: '',
-    cargo_weight_kg: '0',
-    planned_distance_km: '0',
-    revenue: '0',
-    load_type: '',
-    freight_type: '',
+    source: '', destination: '', vehicle: '', driver: '',
+    cargo_weight_kg: '0', planned_distance_km: '0', revenue: '0',
+    load_type: '', freight_type: '',
   });
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const fetchBoard = async () => {
     try {
       const res = await api.get('/trips/board/');
       setBoard(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => {
     fetchBoard();
-    const interval = setInterval(fetchBoard, 15000); // refresh every 15s
-    return () => clearInterval(interval);
+    const loadOptions = async () => {
+      try {
+        const [vRes, dRes] = await Promise.all([api.get('/vehicles/?status=Available'), api.get('/drivers/?status=Available')]);
+        setVehicles(vRes.data.results || vRes.data);
+        setDrivers(dRes.data.results || dRes.data);
+      } catch (err) { console.error(err); }
+    };
+    loadOptions();
   }, []);
 
-  const handleAction = async (id: number, action: 'dispatch' | 'complete' | 'cancel') => {
-    if (!window.confirm(`Are you sure you want to ${action} this trip?`)) return;
-    setActionLoading(id);
+  const handleAction = async (tripId: number, actionType: string) => {
+    setActionLoading(tripId);
     try {
-      let payload = {};
-      if (action === 'complete') {
-        const finalOdometer = window.prompt('Enter final odometer (km):');
-        const fuelConsumed = window.prompt('Enter fuel consumed (litres):');
-        const fuelCost = window.prompt('Enter fuel cost (optional, defaults to 0):', '0');
-
-        if (!finalOdometer || !fuelConsumed) {
-          setActionLoading(null);
-          return;
-        }
-
-        payload = {
-          final_odometer_km: Number(finalOdometer),
-          fuel_consumed_l: Number(fuelConsumed),
-          fuel_cost: Number(fuelCost || 0),
-        };
-      }
-      await api.post(`/trips/${id}/${action}/`, payload);
+      await api.post(`/trips/${tripId}/${actionType}/`);
       await fetchBoard();
-    } catch (err: unknown) {
+    } catch (err) {
       const apiErr = err as ApiError;
-      alert(apiErr.response?.data?.detail || `Failed to ${action} trip`);
-    } finally {
-      setActionLoading(null);
+      alert(apiErr.response?.data?.detail || 'Action failed.');
+    } finally { setActionLoading(null); }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const tripId = Number(event.active.id);
+    const allTrips = [...board.draft, ...board.dispatched, ...board.completed, ...board.cancelled];
+    setActiveTrip(allTrips.find(t => t.id === tripId) || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveTrip(null);
+    const { active, over } = event;
+    if (!over || !canDispatch) return;
+    const tripId = Number(active.id);
+    const targetColumn = String(over.id);
+
+    // Find current trip status
+    const allTrips = [...board.draft, ...board.dispatched, ...board.completed, ...board.cancelled];
+    const trip = allTrips.find(t => t.id === tripId);
+    if (!trip) return;
+
+    const currentStatus = trip.status.toLowerCase();
+    if (currentStatus === targetColumn) return;
+
+    // Only allow valid transitions via drag
+    if (currentStatus === 'draft' && targetColumn === 'dispatched') {
+      await handleAction(tripId, 'dispatch');
+    } else if (currentStatus === 'dispatched' && targetColumn === 'cancelled') {
+      await handleAction(tripId, 'cancel');
+    } else if (currentStatus === 'draft' && targetColumn === 'cancelled') {
+      await handleAction(tripId, 'cancel');
     }
   };
 
@@ -125,322 +292,131 @@ export default function LiveBoardPage() {
     setCreateError('');
     try {
       await api.post('/trips/', {
-        ...form,
-        vehicle: Number(form.vehicle),
-        driver: Number(form.driver),
+        source: form.source, destination: form.destination,
+        vehicle: Number(form.vehicle), driver: Number(form.driver),
         cargo_weight_kg: Number(form.cargo_weight_kg),
         planned_distance_km: Number(form.planned_distance_km),
         revenue: Number(form.revenue),
-      });
-      setForm({
-        source: '',
-        destination: '',
-        vehicle: '',
-        driver: '',
-        cargo_weight_kg: '0',
-        planned_distance_km: '0',
-        revenue: '0',
-        load_type: '',
-        freight_type: '',
+        load_type: form.load_type,
+        freight_type: form.freight_type,
       });
       setShowCreate(false);
+      setForm({ source: '', destination: '', vehicle: '', driver: '', cargo_weight_kg: '0', planned_distance_km: '0', revenue: '0', load_type: '', freight_type: '' });
       await fetchBoard();
-    } catch (err: unknown) {
+    } catch (err) {
       const apiErr = err as ApiError;
       setCreateError(apiErr.response?.data?.detail || 'Failed to create trip.');
     }
   };
 
-  const renderTripCard = (trip: Trip, col: string) => (
-    <div key={trip.id} onClick={() => router.push(`/trips/new?tripId=${trip.id}`)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer">
-      <div className="flex justify-between items-start mb-2">
-        <EditableTripCode trip={trip} onUpdated={() => fetchBoard()} />
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">₹{parseFloat(trip.revenue).toLocaleString()}</span>
-      </div>
-      
-      <div className="mb-3">
-        <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={`${trip.source} to ${trip.destination}`}>
-          {trip.source} → {trip.destination}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-xs text-slate-500">{trip.cargo_weight_kg} kg</p>
-          {trip.status === 'Dispatched' && trip.expected_return_date && new Date(trip.expected_return_date) < new Date() && (
-            <span className="flex items-center text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded" title={`Overdue since ${trip.expected_return_date}`}>
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Overdue
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1.5 mb-4">
-        <div className="flex items-center text-xs text-slate-600 dark:text-slate-300">
-          <Truck className="w-3.5 h-3.5 mr-2 text-slate-400 dark:text-slate-500" />
-          {trip.vehicle_reg || 'Unassigned'}
-        </div>
-        <div className="flex items-center text-xs text-slate-600 dark:text-slate-300">
-          <UserIcon className="w-3.5 h-3.5 mr-2 text-slate-400 dark:text-slate-500" />
-          {trip.driver_name || 'Unassigned'}
-        </div>
-      </div>
-
-      {canDispatch && col === 'draft' && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'dispatch'); }}
-          disabled={actionLoading === trip.id}
-          className="w-full py-1.5 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
-        >
-          {actionLoading === trip.id ? 'Processing...' : <><Play className="w-3 h-3 mr-1" /> Dispatch</>}
-        </button>
-      )}
-
-      {canDispatch && col === 'dispatched' && (
-        <div className="flex gap-2">
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'complete'); }}
-            disabled={actionLoading === trip.id}
-            className="flex-1 py-1.5 bg-green-50 dark:bg-green-600/20 text-green-600 dark:text-green-400 hover:bg-green-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
-          >
-            {actionLoading === trip.id ? '...' : <><CheckCircle className="w-3 h-3 mr-1" /> Complete</>}
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleAction(trip.id, 'cancel'); }}
-            disabled={actionLoading === trip.id}
-            className="flex-1 py-1.5 bg-red-50 dark:bg-red-600/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded text-xs font-medium transition-colors flex justify-center items-center"
-          >
-            {actionLoading === trip.id ? '...' : <><XCircle className="w-3 h-3 mr-1" /> Cancel</>}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
-  // Trip modal state
-  const [openTripId, setOpenTripId] = useState<number | null>(null);
-  const [tripDetail, setTripDetail] = useState<any>(null);
-  const [tripSaving, setTripSaving] = useState(false);
-
-  const openTripModal = async (id: number) => {
-    setOpenTripId(id);
-    try {
-      const res = await api.get(`/trips/${id}/`);
-      setTripDetail(res.data);
-    } catch (err) {
-      alert('Failed to load trip details');
-      setOpenTripId(null);
-    }
-  };
-
-  const closeTripModal = () => {
-    setOpenTripId(null);
-    setTripDetail(null);
-  };
-
-  const saveTripDetail = async () => {
-    if (!openTripId || !tripDetail) return;
-    setTripSaving(true);
-    try {
-      await api.patch(`/trips/${openTripId}/`, tripDetail);
-      await fetchBoard();
-      closeTripModal();
-    } catch (err) {
-      alert((err as any)?.response?.data?.detail || 'Failed to save trip');
-    } finally { setTripSaving(false); }
-  };
-
-
-  function EditableTripCode({ trip, onUpdated }: { trip: Trip; onUpdated?: () => void }) {
-    const [editing, setEditing] = useState(false);
-    const [value, setValue] = useState(trip.trip_code);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => setValue(trip.trip_code), [trip.trip_code]);
-
-    const save = async () => {
-      if (!value || value === trip.trip_code) { setEditing(false); return; }
-      setSaving(true);
-      try {
-        await api.patch(`/trips/${trip.id}/set-code/`, { trip_code: value });
-        setEditing(false);
-        onUpdated && onUpdated();
-      } catch (err) {
-        alert((err as any)?.response?.data?.detail || 'Failed to update trip code');
-      } finally { setSaving(false); }
-    };
-
-    return (
-      <div>
-        {!editing ? (
-          <button onClick={() => setEditing(true)} className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded">
-            {trip.trip_code}
-          </button>
-        ) : (
-          <div className="flex items-center">
-            <input value={value} onChange={e => setValue(e.target.value)} className="font-mono text-xs font-bold px-2 py-1 w-28 border rounded mr-2" />
-            <button onClick={save} disabled={saving} className="px-2 py-1 bg-blue-600 text-white rounded text-xs mr-1">{saving ? '...' : 'Save'}</button>
-            <button onClick={() => { setEditing(false); setValue(trip.trip_code); }} className="px-2 py-1 bg-slate-200 rounded text-xs">Cancel</button>
-          </div>
-        )}
-      </div>
+  // Filter trips for search
+  const filterTrips = (trips: Trip[]) => {
+    if (!debouncedSearch) return trips;
+    const q = debouncedSearch.toLowerCase();
+    return trips.filter(t =>
+      t.trip_code.toLowerCase().includes(q) ||
+      (t.vehicle_reg && t.vehicle_reg.toLowerCase().includes(q)) ||
+      t.source.toLowerCase().includes(q) ||
+      t.destination.toLowerCase().includes(q) ||
+      (t.driver_name && t.driver_name.toLowerCase().includes(q))
     );
-  }
+  };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const filteredBoard = {
+    draft: filterTrips(board.draft),
+    dispatched: filterTrips(board.dispatched),
+    completed: filterTrips(board.completed),
+    cancelled: filterTrips(board.cancelled),
+  };
 
   return (
-    <div className="h-full flex flex-col space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 pb-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Live Operations Board</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kanban view of all trip lifecycles (auto-refreshes)</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <Truck className="w-6 h-6 text-blue-500" />
+            Live Dispatch Board
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            Drag & drop trips between columns to update their status.
+          </p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex items-center gap-3">
+          <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search trips..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-colors"
-            />
+            <input type="text" placeholder="Search trips..." value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-colors" />
           </div>
-        {canDispatch && (
-          <button 
-            onClick={() => window.location.href = '/trips/new'}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-500/20"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Trip Entry
+          <button onClick={() => router.push('/trips/new')}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-500/20 text-sm shrink-0">
+            <Plus className="w-4 h-4" /> New Trip
           </button>
-        )}
+        </div>
       </div>
-      </div>
 
-      <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
-        {(() => {
-          const filterTrips = (trips: Trip[]) => {
-            if (!debouncedSearch) return trips;
-            const q = debouncedSearch.toLowerCase();
-            return trips.filter(t => 
-              t.trip_code.toLowerCase().includes(q) || 
-              (t.vehicle_reg && t.vehicle_reg.toLowerCase().includes(q)) || 
-              (t.driver_name && t.driver_name.toLowerCase().includes(q)) || 
-              t.source.toLowerCase().includes(q) || 
-              t.destination.toLowerCase().includes(q)
-            );
-          };
-
-          const draftTrips = filterTrips(board.draft);
-          const dispatchedTrips = filterTrips(board.dispatched);
-          const completedTrips = filterTrips(board.completed);
-          const cancelledTrips = filterTrips(board.cancelled);
-
-          return (
-            <>
-              {/* Draft Column */}
-              <div className="min-w-[300px] flex-1 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col">
-                <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-100 dark:bg-slate-800/30 rounded-t-xl">
-                  <h3 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center">
-                    <Clock className="w-4 h-4 mr-2 text-slate-500" /> Draft
-                  </h3>
-                  <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full">{draftTrips.length}</span>
-                </div>
-                <div className="p-3 flex-1 overflow-y-auto space-y-3">
-                  {draftTrips.map(t => renderTripCard(t, 'draft'))}
-                  {draftTrips.length === 0 && <p className="text-center text-sm text-slate-500 mt-4">No draft trips</p>}
-                </div>
-              </div>
-
-              {/* Dispatched Column */}
-              <div className="min-w-[300px] flex-1 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex flex-col">
-                <div className="p-3 border-b border-blue-100 dark:border-blue-900/30 flex justify-between items-center bg-blue-100/50 dark:bg-blue-900/20 rounded-t-xl">
-                  <h3 className="font-semibold text-blue-700 dark:text-blue-400 flex items-center">
-                    <Play className="w-4 h-4 mr-2 text-blue-500" /> Dispatched
-                  </h3>
-                  <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">{dispatchedTrips.length}</span>
-                </div>
-                <div className="p-3 flex-1 overflow-y-auto space-y-3">
-                  {dispatchedTrips.map(t => renderTripCard(t, 'dispatched'))}
-                  {dispatchedTrips.length === 0 && <p className="text-center text-sm text-blue-500/50 mt-4">No active trips</p>}
-                </div>
-              </div>
-
-              {/* Completed Column */}
-              <div className="min-w-[300px] flex-1 bg-green-50/50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30 rounded-xl flex flex-col">
-                <div className="p-3 border-b border-green-100 dark:border-green-900/30 flex justify-between items-center bg-green-100/50 dark:bg-green-900/20 rounded-t-xl">
-                  <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> Completed
-                  </h3>
-                  <span className="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 text-xs px-2 py-0.5 rounded-full">{completedTrips.length}</span>
-                </div>
-                <div className="p-3 flex-1 overflow-y-auto space-y-3">
-                  {completedTrips.map(t => renderTripCard(t, 'completed'))}
-                  {completedTrips.length === 0 && <p className="text-center text-sm text-green-500/50 mt-4">No completed trips</p>}
-                </div>
-              </div>
-
-              {/* Cancelled Column */}
-              <div className="min-w-[300px] flex-1 bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl flex flex-col">
-                <div className="p-3 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center bg-red-100/50 dark:bg-red-900/20 rounded-t-xl">
-                  <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center">
-                    <XCircle className="w-4 h-4 mr-2 text-red-500" /> Cancelled
-                  </h3>
-                  <span className="bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">{cancelledTrips.length}</span>
-                </div>
-                <div className="p-3 flex-1 overflow-y-auto space-y-3">
-                  {cancelledTrips.map(t => renderTripCard(t, 'cancelled'))}
-                  {cancelledTrips.length === 0 && <p className="text-center text-sm text-red-500/50 mt-4">No cancelled trips</p>}
-                </div>
-              </div>
-            </>
-          );
-        })()}
-      </div>
-      {/* Trip Details Modal */}
-      {openTripId && tripDetail && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-          <div className="absolute inset-0 bg-black/40" onClick={closeTripModal} />
-          <div className="relative bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-6 w-full max-w-3xl shadow-lg">
-            <h3 className="text-lg font-semibold mb-4">Edit Trip — {tripDetail.trip_code}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Trip Code</label>
-                <input value={tripDetail.trip_code || ''} onChange={e => setTripDetail({...tripDetail, trip_code: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Source</label>
-                <input value={tripDetail.source || ''} onChange={e => setTripDetail({...tripDetail, source: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Destination</label>
-                <input value={tripDetail.destination || ''} onChange={e => setTripDetail({...tripDetail, destination: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Departure Km</label>
-                <input value={tripDetail.departure_km ?? ''} onChange={e => setTripDetail({...tripDetail, departure_km: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Arrival Km</label>
-                <input value={tripDetail.arrival_km ?? ''} onChange={e => setTripDetail({...tripDetail, arrival_km: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-500 mb-1">Narration</label>
-                <input value={tripDetail.narration || ''} onChange={e => setTripDetail({...tripDetail, narration: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
+      {/* Quick Create */}
+      {showCreate && (
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4 animate-in fade-in duration-300">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3">Quick Create Trip</h3>
+          {createError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{createError}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Source *</label>
+              <input required value={form.source} onChange={e => setForm({...form, source: e.target.value})} placeholder="From..." className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500" />
             </div>
-            <div className="mt-4 flex justify-end space-x-2">
-              <button onClick={closeTripModal} className="px-3 py-2 bg-slate-200 rounded">Cancel</button>
-              <button onClick={saveTripDetail} disabled={tripSaving} className="px-3 py-2 bg-blue-600 text-white rounded">{tripSaving ? 'Saving...' : 'Save changes'}</button>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Destination *</label>
+              <input required value={form.destination} onChange={e => setForm({...form, destination: e.target.value})} placeholder="To..." className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Vehicle *</label>
+              <select required value={form.vehicle} onChange={e => setForm({...form, vehicle: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500">
+                <option value="">Select vehicle</option>
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.registration_number}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Driver *</label>
+              <select required value={form.driver} onChange={e => setForm({...form, driver: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500">
+                <option value="">Select driver</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
             </div>
           </div>
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm bg-slate-100 dark:bg-slate-800 rounded-lg font-medium text-slate-700 dark:text-slate-300">Cancel</button>
+            <button type="submit" className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">Create Draft</button>
+          </div>
+        </form>
+      )}
+
+      {/* Kanban Board */}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {(['draft', 'dispatched', 'completed', 'cancelled'] as const).map(col => (
+              <KanbanColumn
+                key={col}
+                id={col}
+                trips={filteredBoard[col]}
+                onAction={handleAction}
+                actionLoading={actionLoading}
+                canDispatch={canDispatch}
+                router={router}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeTrip && (
+              <TripCard trip={activeTrip} isDragging onAction={() => {}} actionLoading={null} canDispatch={false} router={router} />
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );

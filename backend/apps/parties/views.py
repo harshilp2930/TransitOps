@@ -4,8 +4,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 
-from apps.parties.models import Party, FreightRate
-from apps.parties.serializers import PartySerializer, PartyListSerializer, FreightRateSerializer
+from apps.parties.models import Party, FreightRate, Route
+from apps.parties.serializers import PartySerializer, PartyListSerializer, FreightRateSerializer, RouteSerializer
 from apps.accounts.permissions import IsFleetManagerOrReadOnly
 
 
@@ -50,3 +50,14 @@ class FreightRateViewSet(viewsets.ModelViewSet):
     search_fields = ["from_city", "to_city", "truck_type"]
     ordering_fields = ["from_city", "to_city", "rate"]
     ordering = ["from_city", "to_city"]
+
+
+class RouteViewSet(viewsets.ModelViewSet):
+    """Route master management: standard city pairs with costs and distances."""
+    queryset = Route.objects.filter(is_active=True)
+    serializer_class = RouteSerializer
+    permission_classes = [IsAuthenticated, IsFleetManagerOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["source", "destination"]
+    ordering_fields = ["source", "destination", "standard_distance_km"]
+    ordering = ["source", "destination"]

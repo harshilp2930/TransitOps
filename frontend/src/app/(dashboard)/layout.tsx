@@ -126,6 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: 'Drivers', href: '/drivers', icon: Users, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
     { label: 'Trips', href: '/trips', icon: Activity, roles: ['Dispatcher', 'Fleet Manager'] },
     { label: 'Parties', href: '/parties', icon: MapPin, roles: ['Fleet Manager', 'Dispatcher', 'Financial Analyst'] },
+    { label: 'Routes', href: '/routes', icon: Route, roles: ['Fleet Manager', 'Dispatcher'] },
     { label: 'Maintenance', href: '/maintenance', icon: Wrench, roles: ['Fleet Manager'] },
     { label: 'Fuel & Expenses', href: '/finance', icon: FileText, roles: ['Financial Analyst', 'Fleet Manager'] },
     { label: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['Financial Analyst', 'Fleet Manager'] },

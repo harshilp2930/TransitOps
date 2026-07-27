@@ -46,8 +46,9 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
+            "owner_type", "broker", "broker_tds_rate",
             "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
-            "rolling_mileage_avg", "tyre_replacement_threshold",
+            "rolling_mileage_avg", "avg_mileage_kmpl", "tyre_replacement_threshold",
             "insurance_expiry", "fitness_expiry", "permit_expiry",
             "status", "region", "owner_name", "account_reference", "last_depot_return", "created_at", "updated_at",
             "documents", "total_operational_cost", "category_expense_totals",
@@ -110,8 +111,9 @@ class VehicleListSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id", "registration_number", "name_model", "type",
+            "owner_type", "broker",
             "max_load_capacity_kg", "odometer_km", "tyre_changed_odometer_km", "acquisition_cost",
-            "rolling_mileage_avg", "tyre_replacement_threshold",
+            "rolling_mileage_avg", "avg_mileage_kmpl", "tyre_replacement_threshold",
             "insurance_expiry", "fitness_expiry", "permit_expiry",
             "status", "region", "owner_name", "account_reference", "last_depot_return", "created_at", "needs_tyre_change", "is_depot_overdue"
         ]
