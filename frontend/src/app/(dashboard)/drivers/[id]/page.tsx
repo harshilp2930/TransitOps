@@ -11,14 +11,19 @@ export default function DriverDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const [driver, setDriver] = useState<any>(null);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     const fetchDriver = async () => {
       try {
-        const res = await api.get(`/drivers/${id}/`);
-        setDriver(res.data);
+        const [driverRes, paymentsRes] = await Promise.all([
+          api.get(`/drivers/${id}/`),
+          api.get(`/payments/?driver=${id}`)
+        ]);
+        setDriver(driverRes.data);
+        setPayments(paymentsRes.data.results || paymentsRes.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -106,6 +111,63 @@ export default function DriverDetailPage() {
               <p className="text-sm font-medium">Driver license is active. Expires on {format(new Date(driver.license_expiry_date), 'MMM dd, yyyy')}.</p>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm p-6">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Driver Ledger (Settlement)</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Total Advances</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              ₹{payments.filter(p => p.payment_type.includes('Advance')).reduce((acc, p) => acc + parseFloat(p.amount), 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Total Settlements</p>
+            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              ₹{payments.filter(p => p.payment_type.includes('Balance')).reduce((acc, p) => acc + parseFloat(p.amount), 0).toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400">
+              <tr>
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Trip</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Mode</th>
+                <th className="px-6 py-4">Amount (₹)</th>
+                <th className="px-6 py-4">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
+              {payments.length > 0 ? payments.map((pay) => (
+                <tr key={pay.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="px-6 py-4">{format(new Date(pay.date), 'MMM dd, yyyy')}</td>
+                  <td className="px-6 py-4">{pay.trip_code || '-'}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                      pay.payment_type.includes('Advance') 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50'
+                        : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800/50'
+                    }`}>
+                      {pay.payment_type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">{pay.payment_mode}</td>
+                  <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">₹{parseFloat(pay.amount).toLocaleString()}</td>
+                  <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={pay.remarks}>{pay.remarks || '-'}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No payment records found for this driver.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

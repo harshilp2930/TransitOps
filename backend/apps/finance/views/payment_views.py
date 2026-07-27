@@ -14,11 +14,18 @@ class PaymentSerializer(serializers.ModelSerializer):
     trip_code = serializers.CharField(
         source="trip.trip_code", read_only=True, default=""
     )
+    driver_name = serializers.CharField(
+        source="driver.name", read_only=True, default=""
+    )
+    party_name = serializers.CharField(
+        source="party.name", read_only=True, default=""
+    )
 
     class Meta:
         model = Payment
         fields = [
             "id", "vehicle", "vehicle_reg", "trip", "trip_code",
+            "driver", "driver_name", "party", "party_name",
             "date", "payment_type", "amount", "payment_mode",
             "reference_no", "remarks", "created_at"
         ]
@@ -30,10 +37,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
     GET  /api/v1/payments/ — list (all roles)
     POST /api/v1/payments/ — create (Financial Analyst + Dispatcher)
     """
-    queryset = Payment.objects.select_related("vehicle", "trip").all()
+    queryset = Payment.objects.select_related("vehicle", "trip", "driver", "party").all()
     permission_classes = [IsAuthenticated, IsFinancialAnalystOrDispatcher]
     serializer_class = PaymentSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["vehicle", "trip", "payment_type", "payment_mode"]
+    filterset_fields = ["vehicle", "trip", "driver", "party", "payment_type", "payment_mode"]
     ordering_fields = ["date", "amount"]
     ordering = ["-date"]
